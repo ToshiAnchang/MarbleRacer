@@ -10,6 +10,8 @@ public class MarbleRaceManager : MonoBehaviour
 {
     public static MarbleRaceManager Instance { get; private set; }
 
+    private Canvas startCanvas;
+
     private static Font cachedFont;
 
     [Header("Race Settings")]
@@ -33,6 +35,31 @@ public class MarbleRaceManager : MonoBehaviour
 
     [Range(0f, 1f)]
     public float obstacleDensity = 0.5f;   // ★ 한 칸을 실제로 채울 확률 (0.5면 절반 정도)
+
+    // --- 장애물 스트리밍용 상태 값들 ---
+
+    // WFC로 생성한 전체 장애물 그리드 (논리적인 전 구간)
+    private bool[,] obstacleGrid;
+    // 각 row의 월드 z 위치
+    private float[] obstacleRowZ;
+    // row 인덱스 -> 실제 생성된 장애물 GameObject 리스트
+    private Dictionary<int, List<GameObject>> obstacleRowObjects = new();
+
+    // 장애물 배치 z 구간 (StartRace에서 설정)
+    private float startObstacleZ;
+    private float endObstacleZ;
+    private float obstacleZRange;
+
+    // 현재 "보이는" 장애물 z 범위
+    private float visibleBackZ;
+    private float visibleFrontZ;
+
+    // 스트리밍 규칙 상수
+    private const float FORWARD_NEED_THRESHOLD = 200f;   // 앞으로 남은 길이 200 미만이면
+    private const float FORWARD_ADD_LENGTH = 500f;       // 500 만큼 더 생성
+    private const float BACK_MAX_DISTANCE = 100f;        // 뒤로 100 이상 멀어지면
+    private const float BACK_KEEP_DISTANCE = 20f;        // 20만 남기고 삭제
+
 
     private readonly List<Marble> marbles = new();
 
@@ -73,27 +100,36 @@ public class MarbleRaceManager : MonoBehaviour
     private void StartRace(int seed, int lanes, float length)
     {
         laneCount = Mathf.Clamp(lanes, 2, 8);
-        trackLength = Mathf.Clamp(length, 100f, 2000f);
+
+        // 🔹 길이 2000 상한 제거 – 최소 100만 보장
+        trackLength = Mathf.Max(length, 100f);
         finishZ = trackLength - 40f;
 
         Random.InitState(seed);
 
-        //👇레이스상태 초기화
+        // 레이스 상태 초기화
         winnerAnnounced = false;
         finishedMarbles = new HashSet<Marble>();
+
+        // 스트리밍 상태 초기화
+        obstacleGrid = null;
+        obstacleRowZ = null;
+        obstacleRowObjects.Clear();
 
         GenerateTrackCurve();
         CreateGround();
         CreateWalls();
         CreateLanesAndMarbles();
+
+        // ⬇️ 이제 이 메서드가 "장애물 스트리밍 초기화" 역할
         CreateObstacles();
-        CreateFinishTrigger();
 
-        CreateOuterShell();
-
+        CreateFinishTrigger();        
         CreateCamera();
         CreateMinimap();
     }
+
+
 
     private static Font _uiFont;
 
@@ -124,11 +160,11 @@ public class MarbleRaceManager : MonoBehaviour
     /// 시드에 따라 트랙 곡선을 결정하는 큰 코너 포인트들을 생성.
     /// cornerZ : 트랙 진행(z) 위치
     /// cornerX : 각 위치에서 좌우 오프셋(x)
-    /// </summary>
+    /// </summary>    
     private void GenerateTrackCurve()
     {
-        // 코너 개수 (값이 클수록 코너가 많아지고 복잡해짐)
-        int cornerCount = 12;
+        // 코너 개수 : 적을수록 한 번 한 번의 커브가 크게 느껴짐
+        int cornerCount = 8;
 
         cornerZ = new float[cornerCount];
         cornerX = new float[cornerCount];
@@ -137,8 +173,10 @@ public class MarbleRaceManager : MonoBehaviour
         float end = startZ + trackLength;
 
         // 트랙 중앙 기준에서 좌우로 최대 얼마나 휘어질지
-        // laneWidth * (레인 절반 + 여유) 정도
-        float maxOffset = laneWidth * (laneCount * 0.5f + 1.5f);
+        // ➜ 레인 전체 폭보다 더 크게 흔들리도록 설정
+        float maxOffset = laneWidth * (laneCount * 1.0f + 3f);
+
+        float lastX = 0f;
 
         for (int i = 0; i < cornerCount; i++)
         {
@@ -147,105 +185,118 @@ public class MarbleRaceManager : MonoBehaviour
             // z 위치는 트랙 전체에 균등하게 분포
             cornerZ[i] = Mathf.Lerp(start, end, t);
 
-            // x 오프셋은 랜덤, 다만 시작/끝은 0으로 해서 자연스럽게 들어오고 나가게
             if (i == 0 || i == cornerCount - 1)
             {
+                // 시작 / 끝 지점은 0으로 해서 자연스럽게 직선으로 들어오고 나감
                 cornerX[i] = 0f;
             }
             else
             {
-                float x = Random.Range(-maxOffset, maxOffset);
+                // 왼쪽/오른쪽 방향 랜덤
+                float dir = (Random.value < 0.5f) ? -1f : 1f;
+                // 최소 40% ~ 100% 사이에서 강하게 휘게
+                float mag = Random.Range(maxOffset * 0.4f, maxOffset);
+                float x = dir * mag;
 
-                // 너무 직전 코너와 비슷하면 조금 더 차이를 줘서 단조로움 방지
-                float prev = cornerX[i - 1];
-                if (Mathf.Abs(x - prev) < laneWidth) // 차이가 너무 작으면
+                // 직전 코너랑 같은 방향으로 너무 비슷하게 나오면 반대로 뒤집어서
+                // S자 느낌이 더 잘 나게 함
+                if (Mathf.Sign(x) == Mathf.Sign(lastX) &&
+                    Mathf.Abs(lastX) > maxOffset * 0.3f)
                 {
-                    x += Mathf.Sign(x - prev) * laneWidth * 1.2f;
+                    x = -x;
                 }
 
+                // 최종 클램프
                 cornerX[i] = Mathf.Clamp(x, -maxOffset, maxOffset);
             }
+
+            lastX = cornerX[i];
         }
     }
 
 
-    /// <summary>
-    ///   -긴 슬로프 바닥 생성 (시각적으로는 직선, 곡선 느낌은 벽/장애물/레인으로 연출)
-    ///   -곡선 트랙 바닥 생성 (세그먼트 방식)
-    /// </summary>
+
+    // 슬로프/세그먼트 다 버리고, 그냥 큰 평지 하나로 처리
     private void CreateGround()
     {
-        int segments = 80;
-        float segmentLength = trackLength / segments;
+        // 레인 기준 기본 폭
         float totalWidth = laneCount * laneWidth;
 
-        // ─────────────────────────────
-        // 1) 시각용 타일 세그먼트 (콜라이더 제거)
-        //    → 서로 더 많이 겹치게 해서 틈 안 보이게
-        // ─────────────────────────────
-        for (int i = 0; i < segments; i++)
-        {
-            float zCenter = startZ + (i + 0.5f) * segmentLength;
-            float curveOffset = GetCurveOffset(zCenter);
+        // 트랙이 좌우로 휘어지는 최대폭(GenerateTrackCurve에서 쓰는 값과 맞춰서 넉넉히)
+        float maxCurveAbs = laneWidth * (laneCount * 1.0f + 3f);
 
-            var groundSeg = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            groundSeg.name = $"Ground_{i}";
-            groundSeg.transform.position = new Vector3(curveOffset, -0.25f, zCenter);
+        // "흰색 트랙"이 차지할 절반 폭
+        float halfTrackWidth = totalWidth * 0.5f + maxCurveAbs + 4f;   // 좌우 여유 4
 
-            // ① 좌우 폭을 넉넉히 → 벽보다 충분히 넓게
-            // ② 앞뒤 길이를 1.4배 → 서로 많이 겹치게 해서 틈 방지
-            groundSeg.transform.localScale = new Vector3(
-                totalWidth + 6f,
-                0.5f,
-                segmentLength * 1.4f
-            );
-
-            // 이 세그먼트는 "그림"만 담당 → 물리 충돌 X
-            Destroy(groundSeg.GetComponent<Collider>());
-        }
+        float centerZ = startZ + trackLength * 0.5f;
 
         // ─────────────────────────────
-        // 2) 실제 물리용 바닥 콜라이더 한 장
+        // 1) 실제로 공이 굴러다닐 흰색 바닥 (시각 + 물리용)
         // ─────────────────────────────
-        var groundCol = new GameObject("GroundCollider");
-        groundCol.transform.position = new Vector3(0f, -0.25f, startZ + trackLength * 0.5f);
+        var trackGround = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        trackGround.name = "TrackGround";
+        trackGround.transform.position = new Vector3(0f, -0.25f, centerZ);
+        trackGround.transform.localScale = new Vector3(
+            halfTrackWidth * 2f,   // X 방향 : 트랙 + 커브 + 여유까지 한 번에 덮음
+            0.5f,
+            trackLength + 40f      // Z 방향 : 앞뒤로 20씩 여유
+        );
 
-        // GetCurveOffset에서 쓰는 최대 진폭 대충 계산
-        float maxCurveAbs = laneWidth * (2f + 1.2f * 0.5f); // amp1 + amp2 * 0.5f ≒ 2.6 * laneWidth
-        float halfWidth = totalWidth * 0.5f + maxCurveAbs + 2f; // 레인 폭 + 곡선 여유 + 안전 마진
+        // 색은 흰색
+        var trackMat = new Material(Shader.Find("Standard"));
+        trackMat.color = Color.white;
+        trackGround.GetComponent<Renderer>().material = trackMat;
 
-        var box = groundCol.AddComponent<BoxCollider>();
-        box.size = new Vector3(halfWidth * 2f, 1.0f, trackLength + 20f); // X를 넉넉하게, Z도 여유 있게
-
-        var rb = groundCol.AddComponent<Rigidbody>();
+        // 물리용 : BoxCollider 그대로 두고, Rigidbody 를 키네마틱으로 추가
+        var rb = trackGround.AddComponent<Rigidbody>();
         rb.isKinematic = true;
 
         // ─────────────────────────────
-        // 3) 트랙 바깥은 전부 "검은 바닥"으로 깔아버리기
-        //    → 구조물 삐져나온 거 / 틈 아래가 다 검정으로 보이게
+        // 2) 트랙 바깥 전체를 덮는 검은 바닥(배경용, 충돌 없음)
         // ─────────────────────────────
         var voidGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
         voidGo.name = "OuterVoid";
-
-        float voidSizeX = halfWidth * 4f;
-        float voidSizeZ = trackLength * 4f;
-
-        // 살짝 더 아래로 내려서 실제 바닥 아래에 깔기
-        voidGo.transform.position = new Vector3(0f, -1.0f, startZ + trackLength * 0.5f);
-        voidGo.transform.localScale = new Vector3(voidSizeX, 1.0f, voidSizeZ);
+        voidGo.transform.position = new Vector3(0f, -0.75f, centerZ); // 트랙보다 살짝 아래
+        voidGo.transform.localScale = new Vector3(
+            halfTrackWidth * 4f,   // 트랙보다 훨씬 넓게
+            0.5f,
+            trackLength * 4f       // 앞뒤도 넉넉하게
+        );
 
         var voidMat = new Material(Shader.Find("Standard"));
         voidMat.color = Color.black;
-        var voidRenderer = voidGo.GetComponent<Renderer>();
-        voidRenderer.material = voidMat;
+        voidGo.GetComponent<Renderer>().material = voidMat;
 
-        // 이건 그냥 배경용이니까 콜라이더 제거
+        // 배경용이니까 콜라이더 제거
         Destroy(voidGo.GetComponent<Collider>());
     }
 
+    /// <summary>
+    /// z 위치에 따라 트랙의 "전체 반폭(halfWidth)"을 돌려준다.
+    /// - t=0(스타트)와 t=1(피니시)에서는 레인 폭과 딱 맞게
+    /// - 중간(t=0.5 근처)에서는 넓어졌다가 다시 좁아지는 Slope 연출
+    /// </summary>
+    private float GetTrackHalfWidth(float z)
+    {
+        float baseHalf = laneCount * laneWidth * 0.5f;   // 레인들만 딱 들어가는 기본 폭
+
+        float zMin = startZ;
+        float zMax = startZ + trackLength;
+        float t = Mathf.InverseLerp(zMin, zMax, z);      // 0~1
+
+        // 가운데에서 가장 넓고, 시작/끝은 0인 사인 곡선
+        // t=0   -> 0
+        // t=0.5 -> 1
+        // t=1   -> 0
+        float widenFactor = Mathf.Sin(t * Mathf.PI);     // 0~1
+
+        // 얼마나 더 넓어질지 (레인 수에 따라 자동으로 조금 더 크게)
+        float extra = laneWidth * (laneCount * 0.5f + 2.5f);
+
+        return baseHalf + extra * widenFactor;
+    }
 
 
-    // z 위치에 따라 트랙의 좌우 곡선 오프셋을 돌려주는 함수
     // z 위치에 따라 트랙의 좌우 곡선 오프셋을 돌려주는 함수
     private float GetCurveOffset(float z)
     {
@@ -319,34 +370,38 @@ public class MarbleRaceManager : MonoBehaviour
     }
 
 
-    // 양옆 가드레일 생성 – "큐브 여러 개"가 아니라
-    // 곡선을 따라 이어지는 한 장짜리 메쉬로 만든 벽
+    // 양옆 가드레일 생성 – 곡선을 따라 이어지는 "한 장짜리" 벽 스트립
     private void CreateWalls()
     {
         float totalWidth = laneCount * laneWidth;
-        float halfWidth = totalWidth * 0.5f;
+        float halfTrackWidth = totalWidth * 0.5f;
+
+        // 트랙 중앙에서 레인 밖으로 약간 여유를 둔 위치에 벽을 세움
+        // (여기 값이 클수록 레인이 넓어지는 느낌)
+        float wallOffsetFromCenter = halfTrackWidth + laneWidth * 0.5f;
 
         int samples = 160;                     // 샘플 개수 (값 높일수록 곡선이 더 부드러워짐)
         float dz = trackLength / samples;
 
         // 왼쪽/오른쪽 벽 각각 메쉬 생성
-        CreateWallSide("LeftWall", +1f, halfWidth, dz, samples);
-        CreateWallSide("RightWall", -1f, halfWidth, dz, samples);
+        CreateWallSide("LeftWall", +1f, wallOffsetFromCenter, dz, samples);
+        CreateWallSide("RightWall", -1f, wallOffsetFromCenter, dz, samples);
     }
 
+
     /// <summary>
-    /// sideSign : +1 → 왼쪽 벽, -1 → 오른쪽 벽
-    /// halfWidth : 트랙 중앙에서 레인 반폭
+    /// sideSign : +1 → 트랙 진행 방향 기준 왼쪽 벽, -1 → 오른쪽 벽
+    /// offsetFromCenter : 트랙 중앙에서 벽까지의 거리
     /// </summary>
-    private void CreateWallSide(string name, float sideSign, float halfWidth, float dz, int samples)
+    private void CreateWallSide(string name, float sideSign, float offsetFromCenter, float dz, int samples)
     {
-        // 🔹 각 z 샘플당 4개의 버텍스 (바깥 아래/위 + 안쪽 아래/위)
-        int vertCount = (samples + 1) * 4;
+        // ─────────────────────
+        // 1) 시각용 메쉬(얇은 리본)
+        // ─────────────────────
+        int vertCount = (samples + 1) * 2;   // 아래/위
         Vector3[] vertices = new Vector3[vertCount];
         Vector2[] uvs = new Vector2[vertCount];
-
-        // 샘플당 6개의 삼각형(18 인덱스): 바깥면 2, 안쪽면 2, 옆면 2
-        int[] triangles = new int[samples * 18];
+        int[] triangles = new int[samples * 6];   // 사각형 1개당 2삼각형
 
         float zStart = startZ;
         float zEnd = startZ + trackLength;
@@ -362,7 +417,7 @@ public class MarbleRaceManager : MonoBehaviour
 
             // 진행 방향(접선) 계산용 샘플
             float z2 = z + 0.5f;
-            if (z2 > zEnd) z2 = z - 0.5f;   // 끝에서는 반대쪽으로 샘플링
+            if (z2 > zEnd) z2 = z - 0.5f;
 
             float centerX2 = GetCurveOffset(z2);
             Vector3 center2 = new Vector3(centerX2, 0f, z2);
@@ -371,67 +426,40 @@ public class MarbleRaceManager : MonoBehaviour
             if (tangent.sqrMagnitude < 0.0001f)
                 tangent = Vector3.forward;
 
-            // 좌/우 방향 법선
-            Vector3 normal = new Vector3(-tangent.z, 0f, tangent.x).normalized * sideSign;
+            // 진행 방향 기준 왼쪽 벡터
+            Vector3 perpLeft = new Vector3(-tangent.z, 0f, tangent.x).normalized;
+            Vector3 sideDir = (sideSign > 0f) ? perpLeft : -perpLeft;
 
-            // 바깥/안쪽 바닥 위치
-            Vector3 basePos = center + normal * (halfWidth + 0.2f);
-            Vector3 basePosInner = basePos - normal * 0.25f; // 두께
+            // 실제 벽 위치
+            Vector3 basePos = center + sideDir * offsetFromCenter;
 
-            int v = i * 4;
+            int v = i * 2;
 
-            // 바깥면
             vertices[v + 0] = basePos;
             vertices[v + 1] = basePos + Vector3.up * wallHeight;
 
-            // 안쪽면
-            vertices[v + 2] = basePosInner;
-            vertices[v + 3] = basePosInner + Vector3.up * wallHeight;
-
-            // UV (길이 방향 u, 높이 방향 v)
             float u = (float)i / samples;
             uvs[v + 0] = new Vector2(u, 0f);
             uvs[v + 1] = new Vector2(u, 1f);
-            uvs[v + 2] = new Vector2(u, 0f);
-            uvs[v + 3] = new Vector2(u, 1f);
         }
 
-        // 삼각형 인덱스
         int ti = 0;
         for (int i = 0; i < samples; i++)
         {
-            int v = i * 4;
-            int vn = (i + 1) * 4;
+            int v = i * 2;
+            int vn = (i + 1) * 2;
 
-            // 1️⃣ 바깥면
+            // 아래-위-다음아래
             triangles[ti++] = v + 0;
             triangles[ti++] = v + 1;
             triangles[ti++] = vn + 0;
 
+            // 다음아래-위-다음위
             triangles[ti++] = vn + 0;
             triangles[ti++] = v + 1;
             triangles[ti++] = vn + 1;
-
-            // 2️⃣ 안쪽면 (반대 방향)
-            triangles[ti++] = v + 2;
-            triangles[ti++] = vn + 2;
-            triangles[ti++] = v + 3;
-
-            triangles[ti++] = vn + 2;
-            triangles[ti++] = vn + 3;
-            triangles[ti++] = v + 3;
-
-            // 3️⃣ 옆면 (두께 연결)
-            triangles[ti++] = v + 0;
-            triangles[ti++] = vn + 0;
-            triangles[ti++] = v + 2;
-
-            triangles[ti++] = vn + 0;
-            triangles[ti++] = vn + 2;
-            triangles[ti++] = v + 2;
         }
 
-        // 게임오브젝트 + 메쉬 컴포넌트 생성
         var wallGo = new GameObject(name);
         wallGo.transform.position = Vector3.zero;
         wallGo.transform.rotation = Quaternion.identity;
@@ -452,12 +480,37 @@ public class MarbleRaceManager : MonoBehaviour
         mat.color = new Color(0.8f, 0.8f, 0.8f);
         mr.sharedMaterial = mat;
 
-        var mc = wallGo.AddComponent<MeshCollider>();
-        mc.sharedMesh = mesh;
-        mc.convex = false;
+        // 시각용 메쉬에는 콜라이더 안 달아요 (너무 얇아서 관통 나기 쉬움)
+        // ─────────────────────
+        // 2) 실제 충돌용 BoxCollider 세그먼트들
+        // ─────────────────────
+        float thickness = 0.6f;   // 벽 두께 (원하는 만큼 조절 가능)
+
+        for (int i = 0; i < samples; i++)
+        {
+            int v = i * 2;
+            int vn = (i + 1) * 2;
+
+            Vector3 p0 = vertices[v + 0];   // 현재 구간 바닥점
+            Vector3 p1 = vertices[vn + 0];  // 다음 구간 바닥점
+
+            Vector3 dir = p1 - p0;
+            float length = dir.magnitude;
+            if (length < 0.001f) continue;
+
+            Vector3 center = (p0 + p1) * 0.5f;
+
+            var segObj = new GameObject($"{name}_Col_{i}");
+            segObj.transform.SetParent(wallGo.transform, false);
+
+            // 월드 기준 위치/회전 그대로 사용 (wallGo가 회전 0이니까 그대로 로컬 = 월드)
+            segObj.transform.position = center + Vector3.up * (wallHeight * 0.5f);
+            segObj.transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+
+            var boxCol = segObj.AddComponent<BoxCollider>();
+            boxCol.size = new Vector3(thickness, wallHeight, length);
+        }
     }
-
-
 
     private void CreateLanesAndMarbles()
     {
@@ -649,9 +702,9 @@ public class MarbleRaceManager : MonoBehaviour
         return hasObstacle;
     }
 
-
-    // 장애물 생성: WFC 스타일 그리드 결과를 이용해 배치
-    // 장애물 생성: WFC 스타일 그리드 결과를 이용해 배치
+    // 장애물 생성: WFC 그리드 결과를 이용해 배치
+    // - 장애물은 레인 중앙에만 놓고
+    // - 장애물 크기를 구슬/레인 폭을 고려해서 벽과의 최소 간격을 보장한다.
     private void CreateObstacles()
     {
         float totalWidth = laneCount * laneWidth;
@@ -664,6 +717,18 @@ public class MarbleRaceManager : MonoBehaviour
 
         // 여기서 WFC 방식으로 장애물 그리드 생성
         bool[,] hasObstacle = GenerateObstacleGridWfc();
+
+        // ▶ 구슬 반지름 (Sphere 기본 scale 1이라면 0.5)
+        const float marbleRadius = 0.5f;
+        // 벽과 장애물 사이에 최소 한 개의 구슬이 지나갈 수 있도록,
+        // 장애물 반폭이 가질 수 있는 최대값을 계산:
+        //  halfLane - marbleRadius * marginFactor
+        const float gapMargin = 1.1f; // 살짝 여유
+        float maxObstacleHalfWidth = Mathf.Max(
+            0.1f,
+            laneWidth * 0.5f - marbleRadius * gapMargin
+        );
+        // (laneWidth가 너무 작아서 음수가 될 경우를 대비해 0.1f 이상으로)
 
         for (int row = 0; row < obstacleRows; row++)
         {
@@ -681,46 +746,74 @@ public class MarbleRaceManager : MonoBehaviour
                 if (Random.value > obstacleDensity)
                     continue;
 
-                float laneBaseX = leftMostX + lane * laneWidth;
-
-                // 레인 안에서 약간 좌우 랜덤
-                float offsetX = Random.Range(-laneWidth * 0.25f, laneWidth * 0.25f);
-                float finalX = laneBaseX + offsetX + curveOffset;
-                Vector3 pos = new Vector3(finalX, 0.5f, baseZ);
+                // 레인 중심 X (랜덤 오프셋 없이 고정)
+                float laneCenterX = leftMostX + lane * laneWidth + curveOffset;
+                Vector3 pos;
 
                 GameObject obs;
                 float roll = Random.value;
 
-                // ===== 정육면체 “벽”은 제거하고, 모두 롤링 가능한 형태로만 구성 =====
-
+                // ─────────────────────────────
+                // 1) 원기둥 범퍼
+                //   - 반지름은 maxObstacleHalfWidth 이하로 제한
+                // ─────────────────────────────
                 if (roll < 0.45f)
                 {
-                    // 1) 원기둥 범퍼 (구슬이 맞으면 튕겨나가는 기둥)
                     obs = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+
+                    float desiredRadius = laneWidth * 0.3f;          // 기본 비율
+                    float radius = Mathf.Min(desiredRadius, maxObstacleHalfWidth);
+                    float dia = radius * 2f;
+
+                    pos = new Vector3(laneCenterX, 0.5f, baseZ);
                     obs.transform.position = pos;
-                    obs.transform.localScale = new Vector3(0.9f, 0.5f, 0.9f);
+                    obs.transform.localScale = new Vector3(dia, 0.5f, dia);
                 }
+                // ─────────────────────────────
+                // 2) 낮은 범프 (레인 하나만 차지)
+                // ─────────────────────────────
                 else if (roll < 0.8f)
                 {
-                    // 2) 낮은 경사/범프 – 구슬이 올라탔다가 굴러내리는 느낌
                     obs = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    obs.transform.position = new Vector3(pos.x, 0.2f, pos.z);
-                    obs.transform.localScale = new Vector3(laneWidth * 0.8f, 0.3f, 2.0f);
+
+                    float desiredHalfWidthX = laneWidth * 0.35f;  // 기본 반폭
+                    float halfWidthX = Mathf.Min(desiredHalfWidthX, maxObstacleHalfWidth);
+                    float widthX = halfWidthX * 2f;
+
+                    float lengthZ = 2.0f;
+
+                    pos = new Vector3(laneCenterX, 0.2f, baseZ);
+                    obs.transform.position = pos;
+                    obs.transform.localScale = new Vector3(widthX, 0.3f, lengthZ);
+
                     obs.transform.rotation = Quaternion.Euler(
-                        Random.Range(8f, 15f),                    // 살짝 기울기
-                        Random.Range(-10f, 10f),                  // 아주 약간 비틀기
-                        0f);
+                        Random.Range(5f, 12f),
+                        Random.Range(-8f, 8f),
+                        0f
+                    );
                 }
+                // ─────────────────────────────
+                // 3) 대각선 바 (조금 진로만 꺾는 용도)
+                // ─────────────────────────────
                 else
                 {
-                    // 3) 대각선 바 – 살짝 방향만 꺾이게, 완전 차단은 아님
                     obs = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    obs.transform.position = new Vector3(pos.x, 0.4f, pos.z);
-                    obs.transform.localScale = new Vector3(laneWidth * 1.1f, 0.5f, 0.6f);
+
+                    float desiredHalfWidthX = laneWidth * 0.5f;   // 레인 ~1폭 정도
+                    float halfWidthX = Mathf.Min(desiredHalfWidthX, maxObstacleHalfWidth);
+                    float widthX = halfWidthX * 2f;
+
+                    float lengthZ = 0.7f;
+
+                    pos = new Vector3(laneCenterX, 0.4f, baseZ);
+                    obs.transform.position = pos;
+                    obs.transform.localScale = new Vector3(widthX, 0.5f, lengthZ);
+
                     float yaw = Random.value < 0.5f ? -25f : 25f;
                     obs.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
                 }
 
+                // 공통: 물리 셋업
                 var rb = obs.AddComponent<Rigidbody>();
                 rb.isKinematic = true;
 
@@ -735,7 +828,183 @@ public class MarbleRaceManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// [fromZ, toZ] 구간에 해당하는 장애물 row를 실제 GameObject로 생성한다.
+    /// 이미 생성된 row는 건드리지 않는다.
+    /// </summary>
+    private void SpawnObstacleRowsInRange(float fromZ, float toZ)
+    {
+        if (obstacleGrid == null || obstacleRowZ == null)
+            return;
 
+        int rows = obstacleGrid.GetLength(0);
+
+        float totalWidth = laneCount * laneWidth;
+        float leftMostX = -totalWidth * 0.5f + laneWidth * 0.5f;
+
+        for (int row = 0; row < rows; row++)
+        {
+            float rowZ = obstacleRowZ[row];
+            if (rowZ < fromZ || rowZ > toZ)
+                continue;
+
+            // 이미 생성된 row라면 스킵
+            if (obstacleRowObjects.ContainsKey(row))
+                continue;
+
+            var list = new List<GameObject>();
+            float curveOffset = GetCurveOffset(rowZ);
+
+            for (int lane = 0; lane < laneCount; lane++)
+            {
+                // 이 칸은 WFC 그리드에서 비워둔 칸이면 넘어감
+                if (!obstacleGrid[row, lane])
+                    continue;
+
+                // 전체 밀도 조절
+                if (Random.value > obstacleDensity)
+                    continue;
+
+                float laneBaseX = leftMostX + lane * laneWidth;
+
+                // 레인 안에서 약간 좌우 랜덤
+                float offsetX = Random.Range(-laneWidth * 0.25f, laneWidth * 0.25f);
+                float finalX = laneBaseX + offsetX + curveOffset;
+                Vector3 pos = new Vector3(finalX, 0.5f, rowZ);
+
+                GameObject obs;
+                float roll = Random.value;
+
+                if (roll < 0.45f)
+                {
+                    // 1) 원기둥 범퍼
+                    obs = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    obs.transform.position = pos;
+                    obs.transform.localScale = new Vector3(0.9f, 0.5f, 0.9f);
+                }
+                else if (roll < 0.8f)
+                {
+                    // 2) 낮은 경사/범프
+                    obs = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    obs.transform.position = new Vector3(pos.x, 0.2f, pos.z);
+                    obs.transform.localScale = new Vector3(laneWidth * 0.8f, 0.3f, 2.0f);
+                    obs.transform.rotation = Quaternion.Euler(
+                        Random.Range(8f, 15f),
+                        Random.Range(-10f, 10f),
+                        0f);
+                }
+                else
+                {
+                    // 3) 대각선 바
+                    obs = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    obs.transform.position = new Vector3(pos.x, 0.4f, pos.z);
+                    obs.transform.localScale = new Vector3(laneWidth * 1.1f, 0.5f, 0.6f);
+                    float yaw = Random.value < 0.5f ? -25f : 25f;
+                    obs.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+                }
+
+                var rb = obs.AddComponent<Rigidbody>();
+                rb.isKinematic = true;
+
+                // 회전형 장애물(옵션)
+                if (roll > 0.45f && Random.value < 0.2f)
+                {
+                    var rot = obs.AddComponent<Rotator>();
+                    rot.rotationAxis = new Vector3(0f, 1f, 0f);
+                    rot.rotationSpeed = Random.Range(20f, 60f);
+                }
+
+                list.Add(obs);
+            }
+
+            if (list.Count > 0)
+                obstacleRowObjects[row] = list;
+        }
+    }
+
+    /// <summary>
+    /// minZ 보다 뒤(작은 z)에 있는 장애물 row들을 전부 삭제한다.
+    /// </summary>
+    private void DespawnObstacleRowsBefore(float minZ)
+    {
+        if (obstacleRowZ == null)
+            return;
+
+        List<int> rowsToRemove = new List<int>();
+
+        foreach (var kv in obstacleRowObjects)
+        {
+            int row = kv.Key;
+            float rowZ = obstacleRowZ[row];
+
+            if (rowZ < minZ)
+            {
+                foreach (var go in kv.Value)
+                {
+                    if (go != null)
+                        Destroy(go);
+                }
+                rowsToRemove.Add(row);
+            }
+        }
+
+        foreach (int row in rowsToRemove)
+        {
+            obstacleRowObjects.Remove(row);
+        }
+    }
+
+    /// <summary>
+    /// 플레이어(기준 구슬) 위치를 기준으로
+    /// 1) 앞으로 남은 물리 맵 길이가 200 미만이면 500만큼 더 생성
+    /// 2) 뒤쪽이 100 이상 멀어지면 20만 남기고 삭제
+    /// </summary>
+    private void UpdateObstacleStreaming()
+    {
+        if (obstacleGrid == null || obstacleRowZ == null)
+            return;
+
+        // 기준 구슬 보정
+        if (focusMarble == null && marbles.Count > 0)
+            focusMarble = marbles[0];
+        if (focusMarble == null)
+            return;
+
+        float playerZ = focusMarble.transform.position.z;
+
+        // ─────────────────────────────
+        // 1) 앞쪽: 남은 길이 < 200 → 500 더 생성
+        // ─────────────────────────────
+        float forwardRemaining = visibleFrontZ - playerZ;
+        if (forwardRemaining < FORWARD_NEED_THRESHOLD)
+        {
+            float targetFront = visibleFrontZ + FORWARD_ADD_LENGTH;
+            float maxFront = endObstacleZ;
+            float newFront = Mathf.Min(targetFront, maxFront);
+
+            if (newFront > visibleFrontZ + 0.1f)
+            {
+                SpawnObstacleRowsInRange(visibleFrontZ, newFront);
+                visibleFrontZ = newFront;
+            }
+        }
+
+        // ─────────────────────────────
+        // 2) 뒤쪽: 플레이어와의 거리 > 100 → 20만 남기고 삭제
+        // ─────────────────────────────
+        float backDistance = playerZ - visibleBackZ;
+        if (backDistance > BACK_MAX_DISTANCE)
+        {
+            float newBack = playerZ - BACK_KEEP_DISTANCE;
+            newBack = Mathf.Max(newBack, startObstacleZ);
+
+            if (newBack > visibleBackZ + 0.1f)
+            {
+                DespawnObstacleRowsBefore(newBack);
+                visibleBackZ = newBack;
+            }
+        }
+    }
 
     private void CreateFinishTrigger()
     {
@@ -781,7 +1050,6 @@ public class MarbleRaceManager : MonoBehaviour
         // EndWall는 일반 콜라이더(트리거 아님) 그대로 둬서 구슬이 여기서 멈춤
     }
 
-
     private void CreateCamera()
     {
         Camera cam = Camera.main;
@@ -808,8 +1076,6 @@ public class MarbleRaceManager : MonoBehaviour
             follow.target = marbles[0].transform; // Marble_1 (빨간 구슬)
         }
     }
-
-    private Canvas startCanvas;
 
     private void CreateStartUI()
     {
@@ -871,7 +1137,6 @@ public class MarbleRaceManager : MonoBehaviour
         seedInput.Select();
         seedInput.ActivateInputField();
     }
-
 
     private InputField CreateInput(string name, string placeholder, string value, Vector2 pos)
     {
@@ -959,7 +1224,6 @@ public class MarbleRaceManager : MonoBehaviour
         txt.color = Color.white;
         txt.alignment = TextAnchor.MiddleCenter;
     }
-
 
     private Button CreateButton(string label, Vector2 pos)
     {
@@ -1055,6 +1319,7 @@ public class MarbleRaceManager : MonoBehaviour
             CreateMinimapIcon(marble);
         }
     }
+
     private void CreateMinimapIcon(Marble marble)
     {
         var iconGO = new GameObject(
@@ -1072,10 +1337,13 @@ public class MarbleRaceManager : MonoBehaviour
 
         minimapIcons.Add(marble, rt);
     }
+
     private void Update()
     {
         UpdateMinimapIcons();
+        UpdateObstacleStreaming();
     }
+
     private void UpdateMinimapIcons()
     {
         if (minimapRect == null) return;
@@ -1123,85 +1391,7 @@ public class MarbleRaceManager : MonoBehaviour
             icon.anchoredPosition = mapCenter + new Vector2(x, y);
         }
     }
-
-    /// <summary>
-    /// 트랙 전체를 감싸는 큰 외곽 박스를 만든다.
-    /// → 벽 너머 / 위쪽에 세상이 안 보이고, 전부 어두운 벽/천장만 보이게.
-    /// 물리 충돌은 전부 끄고, 시각용으로만 사용.
-    /// </summary>
-    private void CreateOuterShell()
-    {
-        float totalWidth = laneCount * laneWidth;
-
-        // 트랙이 좌우로 휘어지는 최대 폭을 대충 넉넉하게 잡음
-        float maxCurveAbs = laneWidth * (laneCount * 0.5f + 2.5f);
-        float halfWidth = totalWidth * 0.5f + maxCurveAbs + 4f;   // 좌우 여유 4
-        float halfLength = trackLength * 0.5f + 20f;              // 앞뒤 여유 20
-        float centerZ = startZ + trackLength * 0.5f;
-
-        // 카메라 높이보다 충분히 높은 벽/천장
-        float camHeight = trackLength * 0.35f;
-        float shellHeight = Mathf.Max(40f, camHeight + 10f);      // 최소 40, 카메라보다 10 높게
-
-        float wallThickness = 1f;
-
-        Color shellColor = new Color(0.03f, 0.03f, 0.03f);        // 거의 검정에 가까운 회색
-
-        GameObject MakePanel(string name, Vector3 pos, Vector3 scale)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = name;
-            go.transform.position = pos;
-            go.transform.localScale = scale;
-
-            var rend = go.GetComponent<Renderer>();
-            var mat = new Material(Shader.Find("Standard"));
-            mat.color = shellColor;
-            rend.material = mat;
-
-            // 물리 충돌은 필요 없으니 제거
-            Destroy(go.GetComponent<Collider>());
-
-            return go;
-        }
-
-        // ▸ 앞쪽(스타트 쪽) 큰 벽
-        MakePanel(
-            "WorldWall_Front",
-            new Vector3(0f, shellHeight * 0.5f, startZ - 10f),
-            new Vector3(halfWidth * 2f, shellHeight, wallThickness)
-        );
-
-        // ▸ 뒤쪽(피니시 뒤) 큰 벽
-        MakePanel(
-            "WorldWall_Back",
-            new Vector3(0f, shellHeight * 0.5f, startZ + trackLength + 10f),
-            new Vector3(halfWidth * 2f, shellHeight, wallThickness)
-        );
-
-        // ▸ 왼쪽 바깥 큰 벽
-        MakePanel(
-            "WorldWall_LeftOuter",
-            new Vector3(-halfWidth - 1f, shellHeight * 0.5f, centerZ),
-            new Vector3(wallThickness, shellHeight, halfLength * 2f)
-        );
-
-        // ▸ 오른쪽 바깥 큰 벽
-        MakePanel(
-            "WorldWall_RightOuter",
-            new Vector3(halfWidth + 1f, shellHeight * 0.5f, centerZ),
-            new Vector3(wallThickness, shellHeight, halfLength * 2f)
-        );
-
-        // ▸ 천장 – 위에서 하늘이 안 보이게 막기
-        MakePanel(
-            "WorldCeiling",
-            new Vector3(0f, shellHeight, centerZ),
-            new Vector3(halfWidth * 2f, wallThickness, halfLength * 2f)
-        );
-    }
-
-
+    
     public void OnMarbleFinished(Marble marble)
     {
         // 같은 구슬이 여러 번 트리거에 들어와도 한 번만 처리
@@ -1232,5 +1422,4 @@ public class MarbleRaceManager : MonoBehaviour
         Scene current = SceneManager.GetActiveScene();
         SceneManager.LoadScene(current.name);
     }
-
 }
