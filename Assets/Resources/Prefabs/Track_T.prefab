@@ -128,29 +128,29 @@ MonoBehaviour:
   shellThickness: 3
   autoGenerateInEditor: 1
   entryProfile:
-    profileId: 20
-    trackWidth: 20
+    profileId: 10
+    trackWidth: 10
     floorDepth: 0
     profilePower: 2
-    wallHeight: 5
+    wallHeight: 10
     embossAmplitude: 0
     embossFreqAlong: 2
     embossFreqAcross: 5
   middleProfile:
-    profileId: 20
-    trackWidth: 20
+    profileId: 12
+    trackWidth: 12
     floorDepth: 0
     profilePower: 2
-    wallHeight: 2
+    wallHeight: 10
     embossAmplitude: 0.1
     embossFreqAlong: 5
     embossFreqAcross: 10
   exitProfile:
-    profileId: 20
-    trackWidth: 20
+    profileId: 10
+    trackWidth: 10
     floorDepth: 0
     profilePower: 2
-    wallHeight: 5
+    wallHeight: 10
     embossAmplitude: 0
     embossFreqAlong: 2
     embossFreqAcross: 2

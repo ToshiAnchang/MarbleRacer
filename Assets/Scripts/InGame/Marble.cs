@@ -34,6 +34,24 @@ public class Marble : MonoBehaviour
     [Range(0.0f, 1.0f)]
     public float minSlopeNormalY = 0.98f;
 
+    [Header("트랙 이탈 판정 / 리스폰")]
+    [Tooltip("트랙 중심선에서 이 거리 이상 벗어나면 트랙 이탈로 판정")]
+    public float outOfTrackDistance = 50f;
+
+    [Tooltip("리스폰 후 이 시간(초) 동안은 다시 리스폰하지 않음")]
+    public float respawnCooldown = 2.0f;
+
+    // 마지막으로 샘플링된 경로 인덱스
+    private int lastClosestPathIndex = -1;
+
+    // 마지막으로 '통과 완료한' 타일의 exit 지점에 해당하는 경로 인덱스
+    private int lastExitPathIndex = -1;
+    private bool hasLastExitPathIndex = false;
+
+    // 리스폰 쿨타임용
+    private float lastRespawnTime = -999f;
+
+
     private float lastFloorY;
     private bool hasLastFloorY = false;
 
@@ -69,7 +87,110 @@ public class Marble : MonoBehaviour
 
         // 3) 경사 어시스트 – 거의 멈췄을 때만 바닥 경사 방향으로 살짝 밀어줌
         AssistOnSlopeIfStuck();
+
+        // 4) 트랙 이탈 감지 및 마지막 타일 exit 지점으로 리스폰
+        HandleOutOfTrackAndRespawn();
     }
+
+    /// <summary>
+    /// 트랙 밖으로 나갔는지 판단하고,
+    /// 나갔다면 "마지막으로 지나온 트랙 타일의 exit 지점"에서
+    /// 같은 레인 위치로 리스폰한다.
+    /// </summary>
+    private void HandleOutOfTrackAndRespawn()
+    {
+        if (manager == null)
+        {
+            manager = MarbleRaceManager.Instance ?? FindObjectOfType<MarbleRaceManager>();
+            if (manager == null)
+                return;
+        }
+
+        if (manager.PathPointCount <= 0 || manager.LaneCount <= 0)
+            return;
+
+        // ───────── 1) 현재 경로 인덱스 계산 및 "마지막으로 지난 타일 exit 인덱스" 갱신 ─────────
+        int closestIndex = manager.GetClosestPathIndex(transform.position);
+        if (closestIndex < 0)
+            closestIndex = 0;
+
+        int samples = Mathf.Max(2, manager.samplesPerTile);
+
+        if (lastClosestPathIndex < 0)
+        {
+            // 첫 프레임이면 그냥 현재 인덱스를 기록만
+            lastClosestPathIndex = closestIndex;
+        }
+        else
+        {
+            int prevTileIndex = lastClosestPathIndex / samples;
+            int currTileIndex = closestIndex / samples;
+
+            // 타일 경계 (exit)를 넘어 다음 타일로 진입했을 때
+            if (currTileIndex > prevTileIndex)
+            {
+                int exitedTileIndex = currTileIndex - 1;
+                int exitIndex = (exitedTileIndex + 1) * samples - 1;
+
+                exitIndex = Mathf.Clamp(exitIndex, 0, manager.PathPointCount - 1);
+
+                lastExitPathIndex = exitIndex;
+                hasLastExitPathIndex = true;
+            }
+
+            lastClosestPathIndex = closestIndex;
+        }
+
+        // ───────── 2) 트랙 이탈 여부 판정 (중심선으로부터의 수평 거리) ─────────
+        Vector3 nearest = manager.GetNearestPathPoint(transform.position);
+
+        Vector2 pos2 = new Vector2(transform.position.x, transform.position.z);
+        Vector2 nearest2 = new Vector2(nearest.x, nearest.z);
+        float horizontalDist = Vector2.Distance(pos2, nearest2);
+
+        // 아직 트랙 안이라고 판단되면 리턴
+        if (horizontalDist <= outOfTrackDistance)
+            return;
+
+        // 너무 자주 리스폰되는 것 방지
+        if (Time.time - lastRespawnTime < respawnCooldown)
+            return;
+
+        // ───────── 3) 리스폰 위치 계산 ─────────
+        int respawnIndex = hasLastExitPathIndex ? lastExitPathIndex : closestIndex;
+        respawnIndex = Mathf.Clamp(respawnIndex, 0, manager.PathPointCount - 1);
+
+        // 타일 exit 중심점
+        Vector3 basePos = manager.GetPathPointByIndex(respawnIndex);
+
+        // 진행 방향 → 오른쪽 벡터 계산
+        Vector3 forward = manager.GetForwardByPathIndex(respawnIndex, 1);
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.0001f)
+            forward = Vector3.forward;
+
+        Vector3 right = Vector3.Cross(Vector3.up, forward).normalized;
+
+        // laneIndex에 따라 레인 오프셋 계산
+        float totalWidth = manager.laneWidth * manager.LaneCount;
+        float leftMost = -totalWidth * 0.5f + manager.laneWidth * 0.5f;
+        float laneOffset = leftMost + laneIndex * manager.laneWidth;
+
+        // 최종 리스폰 위치 = 해당 타일 exit 중심 + 레인 오프셋 + 살짝 위로
+        Vector3 newPos =
+            basePos
+            + right * laneOffset
+            + Vector3.up * manager.marbleStartHeight;
+
+        transform.position = newPos;
+
+        // 속도는 진행 방향으로만 남기고, 너무 세게 튀지 않게 조정
+        float speed = rb.velocity.magnitude;
+        rb.velocity = forward.normalized * speed * 0.5f;
+
+        lastRespawnTime = Time.time;
+    }
+
 
     /// <summary>
     /// 속도가 거의 0 근처이고, 바닥이 평지가 아니면

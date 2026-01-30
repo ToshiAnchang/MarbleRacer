@@ -34,7 +34,7 @@ public class MarbleRaceManager : MonoBehaviour
     public float marbleStartImpulse = 0f; // ★ 시작 부스터는 0으로 두고, Marble 쪽 로직으로만 가속
     public float maxMarbleHeight = 3f;
     [Tooltip("스타트 모서리에서 트랙 진행 방향으로 얼마나 앞에서 시작할지(단위: 미터)")]
-    public float marbleStartForwardOffset = 1f;
+    public float marbleStartForwardOffset = 1.5f;
 
 
     private PhysicMaterial trackPhysicMaterial;   // 트랙(바닥+벽)용 물리 재질
@@ -53,6 +53,20 @@ public class MarbleRaceManager : MonoBehaviour
     private readonly List<Vector3> pathPoints = new List<Vector3>();
     private readonly List<Marble> marbles = new List<Marble>();
     private readonly HashSet<Marble> finishedMarbles = new HashSet<Marble>();
+
+    // -------------------- 장애물 설정 --------------------
+    [Header("장애물 - 회전 브러시")]
+    public bool enableRotatingBrushes = true;
+    [Range(0f, 1f)]
+    public float rotatingBrushLateralOffsetRatio = 0.5f; //트랙의 가로폭 대비 얼마나 퍼트려 생성시킬지
+    public float rotatingBrushDensity = 0.35f;
+    public float rotatingBrushTrackCoverage = 0.9f;
+    public float rotatingBrushThickness = 0.4f;
+    public float rotatingBrushHeightOffset = 0.2f;
+    public float rotatingBrushSwingAngle = 90f;
+    public float rotatingBrushOscillateSpeedMin = 30.5f;
+    public float rotatingBrushOscillateSpeedMax = 100.0f;
+
 
     private Vector3 startCenter;
     private Vector3 startForward;
@@ -430,6 +444,9 @@ public class MarbleRaceManager : MonoBehaviour
     // =====================================================
     // 타일 기반 트랙 생성
     // =====================================================
+    // =====================================================
+    // 타일 기반 트랙 생성 (+ 회전 브러시 장애물 WFC 스타일 배치)
+    // =====================================================
     private void BuildTrackFromTiles(int seed, int tileCount)
     {
         Random.InitState(seed);
@@ -457,9 +474,12 @@ public class MarbleRaceManager : MonoBehaviour
         Vector3 currentForward = Vector3.forward;
         string currentExitProfileId = null;
 
+        // 회전 브러시 인접 제약 플래그
+        bool lastTileHasBrush = false;
+
         for (int i = 0; i < tileCount; i++)
         {
-            // ───── ProfileId 기준 후보 선택 ─────
+            // ───── ProfileId 기준 후보 선택 (WFC 스타일 인접 규칙) ─────
             List<GameObject> candidates = new List<GameObject>();
 
             foreach (var prefab in tilePrefabs)
@@ -479,7 +499,7 @@ public class MarbleRaceManager : MonoBehaviour
 
             TrackTileGenerator genInst = tileGO.GetComponent<TrackTileGenerator>();
 
-            // ★ 여기서 트랙 타일에 낮은 마찰 물리 재질 적용
+            // ★ 트랙 타일에 낮은 마찰 물리 재질 적용
             if (trackPhysicMaterial != null)
             {
                 MeshCollider mc = tileGO.GetComponent<MeshCollider>();
@@ -534,7 +554,17 @@ public class MarbleRaceManager : MonoBehaviour
                 }
             }
 
-            // ───── Exit → 다음 타일 기준 ─────
+            // ───── 이 타일 위에 회전 브러시를 둘지 결정 & 생성 (헬퍼 클래스 호출) ─────
+            RotatingBrushObstacleGenerator.TryPlaceRotatingBrushOnTile(
+                this,          // 설정/상태를 가진 매니저
+                tileGO,
+                genInst,
+                i,
+                tileCount,
+                ref lastTileHasBrush
+            );
+
+            // ───── Exit → 다음 타일 기준 갱신 ─────
             genInst.GetPathFrameLocal(1f,
                 out Vector3 exitCenterLocal,
                 out Vector3 exitForwardLocal,
@@ -554,6 +584,7 @@ public class MarbleRaceManager : MonoBehaviour
             currentExitProfileId = genInst.exitProfile.profileId;
         }
     }
+
 
 
     // =====================================================
@@ -706,7 +737,7 @@ public class MarbleRaceManager : MonoBehaviour
             // 원래는 startCenter + startRight * offset + up * height 였던 부분
             Vector3 laneStartPos =
                 baseStartPos
-                + startRight * offset
+                + startRight * (offset/2)
                 + Vector3.up * marbleStartHeight;
 
             GameObject marbleGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -921,6 +952,35 @@ public class MarbleRaceManager : MonoBehaviour
         trigger.manager = this;
     }
 
+    // 트랙 경로 관련 보조 프로퍼티/메소드 추가
+
+    /// <summary>
+    /// 현재 생성된 경로의 포인트 개수
+    /// </summary>
+    public int PathPointCount
+    {
+        get { return pathPoints != null ? pathPoints.Count : 0; }
+    }
+
+    /// <summary>
+    /// 현재 사용 중인 레인 개수 (내부 laneCount 읽기 전용)
+    /// </summary>
+    public int LaneCount
+    {
+        get { return laneCount; }
+    }
+
+    /// <summary>
+    /// 경로 인덱스로 직접 포인트를 가져오기
+    /// </summary>
+    public Vector3 GetPathPointByIndex(int index)
+    {
+        if (pathPoints == null || pathPoints.Count == 0)
+            return Vector3.zero;
+
+        index = Mathf.Clamp(index, 0, pathPoints.Count - 1);
+        return pathPoints[index];
+    }
 
 
 

@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 826768965124139738}
   - component: {fileID: 6536455283344620837}
   m_Layer: 0
-  m_Name: Track_T 1
+  m_Name: Track_T3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -128,29 +128,29 @@ MonoBehaviour:
   shellThickness: 3
   autoGenerateInEditor: 1
   entryProfile:
-    profileId: 20
-    trackWidth: 20
+    profileId: 10
+    trackWidth: 10
     floorDepth: 0
     profilePower: 2
-    wallHeight: 5
+    wallHeight: 10
     embossAmplitude: 0
     embossFreqAlong: 2
     embossFreqAcross: 5
   middleProfile:
     profileId: 10
     trackWidth: 10
-    floorDepth: 0
+    floorDepth: 0.2
     profilePower: 2
-    wallHeight: 2
+    wallHeight: 10
     embossAmplitude: 0.1
     embossFreqAlong: 2
     embossFreqAcross: 5
   exitProfile:
-    profileId: 5
-    trackWidth: 5
+    profileId: 10
+    trackWidth: 10
     floorDepth: 0
     profilePower: 2
-    wallHeight: 5
+    wallHeight: 10
     embossAmplitude: 0
     embossFreqAlong: 2
     embossFreqAcross: 2
