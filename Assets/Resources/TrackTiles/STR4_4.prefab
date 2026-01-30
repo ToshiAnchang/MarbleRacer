@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &4324331804086689066
+--- !u!1 &6579592514589382336
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,25 +8,25 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 9159764596809021462}
-  - component: {fileID: 8016741996954508048}
-  - component: {fileID: 2870516680882930642}
-  - component: {fileID: 826768965124139738}
-  - component: {fileID: 6536455283344620837}
+  - component: {fileID: 8360108879762438048}
+  - component: {fileID: 6737134055954713475}
+  - component: {fileID: 9012342605344085228}
+  - component: {fileID: 297353753557952701}
+  - component: {fileID: 4224591162922086539}
   m_Layer: 0
-  m_Name: Track_T3
+  m_Name: STR4_4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &9159764596809021462
+--- !u!4 &8360108879762438048
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4324331804086689066}
+  m_GameObject: {fileID: 6579592514589382336}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -35,21 +35,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &8016741996954508048
+--- !u!33 &6737134055954713475
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4324331804086689066}
+  m_GameObject: {fileID: 6579592514589382336}
   m_Mesh: {fileID: 0}
---- !u!23 &2870516680882930642
+--- !u!23 &9012342605344085228
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4324331804086689066}
+  m_GameObject: {fileID: 6579592514589382336}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -85,13 +85,13 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &826768965124139738
+--- !u!64 &297353753557952701
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4324331804086689066}
+  m_GameObject: {fileID: 6579592514589382336}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -107,52 +107,42 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 0}
---- !u!114 &6536455283344620837
+--- !u!114 &4224591162922086539
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4324331804086689066}
+  m_GameObject: {fileID: 6579592514589382336}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8432e4be19d1ccd48a675d21262db3fd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  slopeDeltaHeight: -15
   tileType: 0
   tileLength: 50
   curveAngleDeg: 45
+  slopeDeltaHeight: -20
   segmentsAlong: 64
   segmentsAcross: 48
-  shellThickness: 3
   autoGenerateInEditor: 1
   entryProfile:
-    profileId: 10
-    trackWidth: 10
-    floorDepth: 0
-    profilePower: 2
-    wallHeight: 10
-    embossAmplitude: 0
-    embossFreqAlong: 2
-    embossFreqAcross: 5
+    profileId: 4
+    trackWidth: 4
+    floorDepth: 2
+    profilePower: 0.5
+    wallHeight: 0
   middleProfile:
-    profileId: 10
-    trackWidth: 10
-    floorDepth: 0.2
-    profilePower: 2
-    wallHeight: 10
-    embossAmplitude: 1
-    embossFreqAlong: 2
-    embossFreqAcross: 5
+    profileId: 4
+    trackWidth: 4
+    floorDepth: 2
+    profilePower: 0.5
+    wallHeight: 0
   exitProfile:
-    profileId: 10
-    trackWidth: 10
-    floorDepth: 0
-    profilePower: 2
-    wallHeight: 10
-    embossAmplitude: 0
-    embossFreqAlong: 2
-    embossFreqAcross: 2
-  entryBlendRatio: 0.1
-  exitBlendRatio: 0.1
+    profileId: 4
+    trackWidth: 4
+    floorDepth: 2
+    profilePower: 0.5
+    wallHeight: 0
+  entryBlendRatio: 0.2
+  exitBlendRatio: 0.2

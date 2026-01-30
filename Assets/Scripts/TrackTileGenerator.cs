@@ -36,16 +36,16 @@ public class TrackTileGenerator : MonoBehaviour
 
     [Header("경사 설정")]
     [Tooltip("타일 시작점 대비 끝점의 높이 차이 (양수 = 오르막, 음수 = 내리막)")]
-    public float slopeDeltaHeight = 0f;
+    public float slopeDeltaHeight = -10f;
 
     // ───────────────────────────────── 메쉬 해상도 ─────────────────────────────────
 
     [Header("메쉬 해상도")]
     [Tooltip("진행 방향(앞뒤) 분할 수. 높을수록 곡선이 부드럽지만 버텍스 수가 늘어납니다.")]
-    public int segmentsAlong = 32;
+    public int segmentsAlong = 64;
 
     [Tooltip("가로 방향(왼↔오른쪽) 분할 수. 높을수록 바닥 곡면이 부드럽습니다.")]
-    public int segmentsAcross = 10;
+    public int segmentsAcross = 48;
 
     [Header("에디터 옵션")]
     [Tooltip("에디터에서 값 변경 시 자동으로 메쉬를 재생성할지 여부")]

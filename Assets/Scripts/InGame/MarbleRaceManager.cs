@@ -24,30 +24,36 @@ public class MarbleRaceManager : MonoBehaviour
 
     private static Font _uiFont;
 
+
     [Header("기본 값 (UI 입력 실패 시 사용)")]
     public int defaultSeed = 0;
     public int defaultTileCount = 20;
     public int defaultLaneCount = 4;   // LaneCount 프로퍼티용 (Marble/카메라가 참조할 수 있음)
 
-    // -------------------- 트랙/경로 설정 --------------------
-    [Header("레이스/트랙 설정")]
-    [Tooltip("레인 간 간격 (Marble에서 참조할 수 있도록 남겨둠)")]
-    public float laneWidth = 2.0f;
 
-    [Tooltip("구슬 시작 높이 (리스폰 등에서 참조할 수 있도록 남겨둠)")]
-    public float marbleStartHeight = 0.6f;
+    // -------------------- 스타트 깔대기 --------------------
+    [Header("스타트 깔대기 설정")]
+    [Tooltip("Start Funnel 프리팹(Resources 기준 경로). 예: \"ETC/StartFunnel\"")]
+    public string startFunnelPrefabPath = "ETC/StartFunnel";
 
-    [Header("타일 프리팹 (Resources/Prefabs 폴더 안)")]
-    [Tooltip("Resources/Prefabs 안에서 TrackTileGenerator가 붙어 있는 프리팹을 자동 검색해서 사용합니다.")]
-    public string[] trackTilePrefabNames = { "Track_S", "Track_L", "Track_R" };
+    [Tooltip("깔대기 주둥이 끝에서 첫 타일 entry까지의 오프셋 (x=좌우, y=위/아래, z=앞/뒤)")]
+    
+    public Vector3 firstTileOffsetFromSpoutExit = new Vector3(0f, -0.5f, 2f);
+    // 생성된 깔대기 인스턴스 캐시 (씬 리셋 시 삭제용)
+    
+    private GameObject startFunnelInstance;
 
+
+    // -------------------- 트랙타일/경로 설정 --------------------
     [Header("타일 샘플 해상도")]
     [Tooltip("타일 하나당 경로를 몇 개의 샘플 포인트로 저장할지 (경로 곡선 정밀도)")]
     public int samplesPerTile = 8;
 
+
     // -------------------- 내부 상태 --------------------
     private readonly List<GameObject> spawnedTiles = new List<GameObject>();
     private readonly List<Vector3> pathPoints = new List<Vector3>();
+
 
     private Vector3 startCenter;
     private Vector3 startForward;
@@ -364,16 +370,29 @@ public class MarbleRaceManager : MonoBehaviour
             {
 #if UNITY_EDITOR
                 if (!Application.isPlaying)
-                    DestroyImmediate(tile);
+                    Object.DestroyImmediate(tile);
                 else
 #endif
-                    Destroy(tile);
+                    Object.Destroy(tile);
             }
         }
-
         spawnedTiles.Clear();
         pathPoints.Clear();
+
+        // 스타트 깔대기도 같이 정리
+        if (startFunnelInstance != null)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+                Object.DestroyImmediate(startFunnelInstance);
+            else
+#endif
+                Object.Destroy(startFunnelInstance);
+
+            startFunnelInstance = null;
+        }
     }
+
 
     /// <summary>
     /// Seed와 TileCount에 따라 TrackTile 프리팹들을 이어 붙여 트랙을 생성하고,
@@ -387,8 +406,8 @@ public class MarbleRaceManager : MonoBehaviour
         pathPoints.Clear();
         spawnedTiles.Clear();
 
-        // Resources/Prefabs 안에서 TrackTileGenerator가 붙은 프리팹 검색
-        GameObject[] prefabGOs = Resources.LoadAll<GameObject>("Prefabs");
+        // Resources/TrackTiles 안에서 TrackTileGenerator가 붙은 프리팹 검색
+        GameObject[] prefabGOs = Resources.LoadAll<GameObject>("TrackTiles");
         List<GameObject> tilePrefabs = new List<GameObject>();
 
         foreach (var go in prefabGOs)
@@ -403,9 +422,26 @@ public class MarbleRaceManager : MonoBehaviour
             return;
         }
 
-        Vector3 currentPos = Vector3.zero;
-        Vector3 currentForward = Vector3.forward;
+        // ───────── 스타트 깔대기 생성 및 첫 타일 시작 위치 계산 ─────────
+        // (필요하면 이전 깔대기 삭제는 ClearTiles()에서 처리)
+        startFunnelInstance = StartPosCalculator.CreateStartFunnel(transform, startFunnelPrefabPath);
+
+        FunnelGenerator funnelGen = null;
+        if (startFunnelInstance != null)
+            funnelGen = startFunnelInstance.GetComponent<FunnelGenerator>();
+
+        Vector3 currentPos;
+        Vector3 currentForward;
+
+        StartPosCalculator.GetFirstTileStart(
+            funnelGen,
+            firstTileOffsetFromSpoutExit,
+            out currentPos,
+            out currentForward
+        );
+
         string currentExitProfileId = null;
+
 
         GameObject lastTile = null;
         TrackTileGenerator lastGen = null;
