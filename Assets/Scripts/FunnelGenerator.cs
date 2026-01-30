@@ -61,6 +61,21 @@ public class FunnelGenerator : MonoBehaviour
     private MeshCollider _meshCollider;
 
     // ───────────────────────────────── Unity 라이프사이클 ─────────────────────────────────
+
+    private void Awake()
+    {
+        // 런타임에서 깔대기 프리팹이 Instantiate 되었을 때
+        // MeshFilter / MeshCollider를 확보하고,
+        // 메쉬가 없으면 자동으로 생성해 준다.
+        EnsureComponents();
+
+        if (_meshFilter.sharedMesh == null)
+        {
+            GenerateMesh();
+        }
+    }
+
+
     private void Reset()
     {
         EnsureComponents();
@@ -86,9 +101,10 @@ public class FunnelGenerator : MonoBehaviour
 
     // ───────────────────────────────── 메쉬 생성 ─────────────────────────────────
     [ContextMenu("Generate Funnel Mesh")]
+    [ContextMenu("Generate Funnel Mesh")]
     public void GenerateMesh()
     {
-        // 파라미터 보정
+        // ───── 파라미터 보정 ─────
         if (marbleDiameter <= 0f) marbleDiameter = 1.0f;
         if (topDiameterMultiplier <= 0f) topDiameterMultiplier = 1f;
         if (bottomDiameterMultiplier <= 0f) bottomDiameterMultiplier = 0.5f;
@@ -100,11 +116,12 @@ public class FunnelGenerator : MonoBehaviour
         if (funnelCurvePower <= 0f) funnelCurvePower = 1f;
         if (spoutRadiusMultiplier <= 0f) spoutRadiusMultiplier = 1f;
 
-        float marbleRadius = marbleDiameter * 0.5f;
+        EnsureComponents();
 
-        float topRadius = marbleRadius * topDiameterMultiplier * 0.5f;       // 윗 입구 반지름
-        float bottomRadius = marbleRadius * bottomDiameterMultiplier * 0.5f; // 깔대기 구멍 반지름
-        float spoutRadius = bottomRadius * spoutRadiusMultiplier;            // 주둥이 반지름
+        float marbleRadius = marbleDiameter * 0.5f;
+        float topRadius = marbleRadius * topDiameterMultiplier * 0.5f;
+        float bottomRadius = marbleRadius * bottomDiameterMultiplier * 0.5f;
+        float spoutRadius = bottomRadius * spoutRadiusMultiplier;
 
         int totalDown = funnelSegmentsDown + spoutSegmentsDown;
         int rings = totalDown + 1;
@@ -113,13 +130,12 @@ public class FunnelGenerator : MonoBehaviour
         Vector3[] vertices = new Vector3[rings * ringVerts];
         Vector2[] uvs = new Vector2[vertices.Length];
 
-        // SubMesh별 삼각형 인덱스 리스트
-        var funnelTris = new System.Collections.Generic.List<int>(); // SubMesh 0 (깔대기)
-        var spoutTris = new System.Collections.Generic.List<int>();  // SubMesh 1 (주둥이)
+        var funnelTris = new System.Collections.Generic.List<int>();
+        var spoutTris = new System.Collections.Generic.List<int>();
 
         int v = 0;
 
-        // ───────── 버텍스 생성 ─────────
+        // ───── 버텍스 생성 ─────
         for (int iy = 0; iy < rings; iy++)
         {
             float centerY;
@@ -128,51 +144,40 @@ public class FunnelGenerator : MonoBehaviour
 
             if (iy <= funnelSegmentsDown)
             {
-                // ── 깔대기 구간 (위 → 아래로 곡면) ──
-                float tFunnel = (float)iy / funnelSegmentsDown;  // 0~1
-                float tCurve = Mathf.Pow(tFunnel, funnelCurvePower);
+                float t = (float)iy / funnelSegmentsDown;
+                float tc = Mathf.Pow(t, funnelCurvePower);
 
-                radius = Mathf.Lerp(topRadius, bottomRadius, tCurve);
-                centerY = -tFunnel * funnelHeight;   // 위 0 → 아래 -funnelHeight
-                centerZ = 0f;                        // 깔대기는 Z로 안 휘어짐
+                radius = Mathf.Lerp(topRadius, bottomRadius, tc);
+                centerY = -t * funnelHeight;
+                centerZ = 0f;
             }
             else
             {
-                // ── 주둥이 구간: 곡선으로 휘어지는 파이프 ──
                 int j = iy - funnelSegmentsDown;
-                float tSpout = (float)j / spoutSegmentsDown; // 0~1
+                float t = (float)j / spoutSegmentsDown;
 
-                // 반지름은 직선 보간 (원 기둥이 점점 가늘어지거나 그대로)
-                radius = Mathf.Lerp(bottomRadius, spoutRadius, tSpout);
+                radius = Mathf.Lerp(bottomRadius, spoutRadius, t);
 
-                // --- 여기서 YZ 평면에서 곡선으로 휘게 만든다 (2차 베지어) ---
-
-                // P0 = 깔대기 끝점 (시작점)
                 float y0 = -funnelHeight;
                 float z0 = 0f;
 
-                // P2 = 주둥이 끝점 (목 끝)
                 float y2 = -funnelHeight - spoutLength;
                 float z2 = spoutBendOffsetZ;
 
-                // P1 = 중간 컨트롤 포인트
-                //  - z1 = 0 으로 두어 시작점에서는 z 방향 기울기가 0 (세로 방향)
-                //  - y1 은 살짝 아래쪽으로 내려서 부드러운 곡률
-                float y1 = Mathf.Lerp(y0, y2, 0.3f);  // 직선보다 살짝 위쪽에 둬서 부드럽게
+                float y1 = Mathf.Lerp(y0, y2, 0.3f);
                 float z1 = 0f;
 
-                float oneMinusT = 1f - tSpout;
+                float omt = 1f - t;
 
-                // 2차 베지어 곡선: B(t) = (1-t)^2 P0 + 2(1-t)t P1 + t^2 P2
                 centerY =
-                    oneMinusT * oneMinusT * y0 +
-                    2f * oneMinusT * tSpout * y1 +
-                    tSpout * tSpout * y2;
+                    omt * omt * y0 +
+                    2f * omt * t * y1 +
+                    t * t * y2;
 
                 centerZ =
-                    oneMinusT * oneMinusT * z0 +
-                    2f * oneMinusT * tSpout * z1 +
-                    tSpout * tSpout * z2;
+                    omt * omt * z0 +
+                    2f * omt * t * z1 +
+                    t * t * z2;
             }
 
             float vCoord = (float)iy / totalDown;
@@ -180,13 +185,10 @@ public class FunnelGenerator : MonoBehaviour
             for (int ix = 0; ix < ringVerts; ix++)
             {
                 float u = (float)ix / segmentsAround;
-                float angle = u * Mathf.PI * 2f;
+                float ang = u * Mathf.PI * 2f;
 
-                float cos = Mathf.Cos(angle);
-                float sin = Mathf.Sin(angle);
-
-                float x = radius * cos;
-                float z = radius * sin + centerZ; // 중심을 Z 곡선에 따라 이동
+                float x = Mathf.Cos(ang) * radius;
+                float z = Mathf.Sin(ang) * radius + centerZ;
 
                 vertices[v] = new Vector3(x, centerY, z);
                 uvs[v] = new Vector2(u, vCoord);
@@ -194,20 +196,20 @@ public class FunnelGenerator : MonoBehaviour
             }
         }
 
-        // ───────── 삼각형 생성 ─────────
+        // ───── 삼각형 생성 ─────
         for (int iy = 0; iy < totalDown; iy++)
         {
             bool isSpout = iy >= funnelSegmentsDown;
             var target = isSpout ? spoutTris : funnelTris;
 
-            int rowStart = iy * ringVerts;
-            int nextRowStart = (iy + 1) * ringVerts;
+            int r0 = iy * ringVerts;
+            int r1 = (iy + 1) * ringVerts;
 
             for (int ix = 0; ix < segmentsAround; ix++)
             {
-                int a = rowStart + ix;
+                int a = r0 + ix;
                 int b = a + 1;
-                int c = nextRowStart + ix;
+                int c = r1 + ix;
                 int d = c + 1;
 
                 target.Add(a);
@@ -220,7 +222,14 @@ public class FunnelGenerator : MonoBehaviour
             }
         }
 
-        // ───────── Mesh 구성 ─────────
+#if UNITY_EDITOR
+        // ───── 기존 sharedMesh 정리 (타입 미스매치 방지 핵심) ─────
+        if (!Application.isPlaying && _meshFilter.sharedMesh != null)
+        {
+            DestroyImmediate(_meshFilter.sharedMesh);
+        }
+#endif
+
         Mesh mesh = new Mesh();
         mesh.name = "Funnel_WithCurvedSpout";
 
@@ -228,14 +237,11 @@ public class FunnelGenerator : MonoBehaviour
         mesh.uv = uvs;
 
         mesh.subMeshCount = 2;
-        mesh.SetTriangles(funnelTris, 0); // 깔대기 본체 → Material Element 0
-        mesh.SetTriangles(spoutTris, 1);  // 주둥이 → Material Element 1
+        mesh.SetTriangles(funnelTris, 0);
+        mesh.SetTriangles(spoutTris, 1);
 
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
-
-        if (_meshFilter == null) _meshFilter = GetComponent<MeshFilter>();
-        if (_meshCollider == null) _meshCollider = GetComponent<MeshCollider>();
 
         _meshFilter.sharedMesh = mesh;
         _meshCollider.sharedMesh = mesh;

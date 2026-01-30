@@ -37,10 +37,10 @@ public static class StartPosCalculator
     ///   z = 앞뒤 (트랙 진행 방향 +)
     /// </summary>
     public static void GetFirstTileStart(
-        FunnelGenerator funnel,
-        Vector3 offsetFromSpoutExit,
-        out Vector3 startPos,
-        out Vector3 startForward)
+    FunnelGenerator funnel,
+    Vector3 offsetFromSpoutExit,
+    out Vector3 startPos,
+    out Vector3 startForward)
     {
         // 깔대기 없으면 그냥 원점 기준 기본값
         if (funnel == null)
@@ -63,15 +63,20 @@ public static class StartPosCalculator
         Vector3 right = Vector3.Cross(Vector3.up, flatForward).normalized;
         Vector3 up = Vector3.up;
 
+        // Z 방향으로 1.5만큼 더 깔대기 쪽(반대 방향)으로 당긴 보정 오프셋
+        Vector3 adjustedOffset = offsetFromSpoutExit;
+        adjustedOffset.z -= 1.5f;
+
         // 오프셋 적용
         startPos =
             exitPos
-            + right * offsetFromSpoutExit.x
-            + up * offsetFromSpoutExit.y
-            + flatForward * offsetFromSpoutExit.z;
+            + right * adjustedOffset.x
+            + up * adjustedOffset.y
+            + flatForward * adjustedOffset.z;
 
         startForward = flatForward;
     }
+
 
     /// <summary>
     /// FunnelGenerator.GenerateMesh 에서 사용하는 것과 같은 수식을 이용해

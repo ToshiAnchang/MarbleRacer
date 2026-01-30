@@ -49,6 +49,15 @@ public class MarbleRaceManager : MonoBehaviour
     [Tooltip("타일 하나당 경로를 몇 개의 샘플 포인트로 저장할지 (경로 곡선 정밀도)")]
     public int samplesPerTile = 8;
 
+    // -------------------- 플레이어 구슬 설정 --------------------
+    [Header("플레이어 구슬 설정")]
+    [Tooltip("플레이어 수 (StartPos1~StartPosN 을 사용)")]
+    public int playerCount = 6;
+
+    // 생성된 플레이어 구슬들을 보관 (카메라 등에서 사용할 수 있음)
+    private List<PlayerMarble> playerMarbles = new List<PlayerMarble>();
+
+
 
     // -------------------- 내부 상태 --------------------
     private readonly List<GameObject> spawnedTiles = new List<GameObject>();
@@ -354,13 +363,38 @@ public class MarbleRaceManager : MonoBehaviour
     // =====================================================
     // 레이스(트랙) 생성 뼈대
     // =====================================================
-
     private void StartRace(int seed, int tileCount)
     {
+        // 1) 이전 트랙 / 깔대기 / 플레이어 정리
         ClearTiles();
+        playerMarbles.Clear();
+
+        // 2) 트랙 + 깔대기 생성
         BuildTrackFromTiles(seed, tileCount);
-        // FinishTrigger는 BuildTrackFromTiles 안에서 마지막 타일 기준으로 생성
+
+        // 3) 플레이어 구슬 생성 (StartPos1~N)
+        PlayerMarbleSpawner.SpawnPlayersAtFunnel(
+            startFunnelInstance,
+            playerCount,
+            out playerMarbles
+        );
+
+        // 4) 카메라를 1번 구슬에 붙인다
+        if (playerMarbles.Count > 0)
+        {
+            Camera cam = Camera.main;
+            if (cam != null)
+            {
+                CameraFollow follow = cam.GetComponent<CameraFollow>();
+                if (follow == null)
+                    follow = cam.gameObject.AddComponent<CameraFollow>();
+
+                follow.target = playerMarbles[0].transform;
+            }
+        }
     }
+
+
 
     private void ClearTiles()
     {
