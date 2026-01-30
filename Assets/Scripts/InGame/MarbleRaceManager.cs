@@ -31,7 +31,7 @@ public class MarbleRaceManager : MonoBehaviour
     [Header("레이스 설정")]
     public float laneWidth = 2.0f;
     public float marbleStartHeight = 0.6f;
-    public float marbleStartImpulse = 0f; // ★ 시작 부스터는 0으로 두고, Marble 쪽 로직으로만 가속
+    public float marbleStartImpulse = 5f; // ★ 시작 부스터는 0으로 두고, Marble 쪽 로직으로만 가속
     public float maxMarbleHeight = 3f;
     [Tooltip("스타트 모서리에서 트랙 진행 방향으로 얼마나 앞에서 시작할지(단위: 미터)")]
     public float marbleStartForwardOffset = 1.5f;
@@ -101,8 +101,8 @@ public class MarbleRaceManager : MonoBehaviour
     {
         // ───── 트랙용 (바닥 + 벽) ─────
         trackPhysicMaterial = new PhysicMaterial("TrackLowFriction");
-        trackPhysicMaterial.dynamicFriction = 0.05f;   // 움직이는 마찰
-        trackPhysicMaterial.staticFriction = 0.05f;   // 정지 마찰
+        trackPhysicMaterial.dynamicFriction = 0.01f;   // 움직이는 마찰
+        trackPhysicMaterial.staticFriction = 0.001f;   // 정지 마찰
         trackPhysicMaterial.bounciness = 0.0f;    // 바닥/벽은 전혀 안 튀게
         trackPhysicMaterial.frictionCombine = PhysicMaterialCombine.Minimum;
         trackPhysicMaterial.bounceCombine = PhysicMaterialCombine.Minimum;
@@ -111,7 +111,7 @@ public class MarbleRaceManager : MonoBehaviour
         marblePhysicMaterial = new PhysicMaterial("MarbleLowBounce");
         marblePhysicMaterial.dynamicFriction = 0.02f;
         marblePhysicMaterial.staticFriction = 0.02f;
-        marblePhysicMaterial.bounciness = 0.05f;   // 0.2 → 0.05 로 크게 감소
+        marblePhysicMaterial.bounciness = 0.2f;   // 0.2 → 0.05 로 크게 감소
         marblePhysicMaterial.frictionCombine = PhysicMaterialCombine.Minimum;
         marblePhysicMaterial.bounceCombine = PhysicMaterialCombine.Minimum;
     }
@@ -717,16 +717,17 @@ public class MarbleRaceManager : MonoBehaviour
 
     private void SpawnMarbles()
     {
+        Debug.Log("[MarbleRace] SpawnMarbles start");
+
         if (pathPoints.Count < 2)
         {
-            Debug.LogWarning("[MarbleRace] 경로가 없어서 구슬을 배치할 수 없습니다.");
+            Debug.LogWarning("[MarbleRace] 경로가 없어서 구슬을 배치할 수 없습니다. pathPoints.Count = " + pathPoints.Count);
             return;
         }
 
         float totalWidth = laneWidth * laneCount;
         float leftMost = -totalWidth * 0.5f + laneWidth * 0.5f;
 
-        // ★ 스타트 지점을 트랙 진행 방향(startForward)으로 살짝 앞당긴 기준점
         Vector3 baseStartPos = startCenter
                                + startForward.normalized * marbleStartForwardOffset;
 
@@ -734,45 +735,95 @@ public class MarbleRaceManager : MonoBehaviour
         {
             float offset = leftMost + i * laneWidth;
 
-            // 원래는 startCenter + startRight * offset + up * height 였던 부분
             Vector3 laneStartPos =
                 baseStartPos
-                + startRight * (offset/2)
+                + startRight * (offset / 2f)
                 + Vector3.up * marbleStartHeight;
 
+            Debug.Log($"[MarbleRace] Marble {i} spawn pos = {laneStartPos}");
+
+            // 1) 구슬 GameObject 생성
             GameObject marbleGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            if (marbleGO == null)
+            {
+                Debug.LogError($"[MarbleRace] Marble {i}: CreatePrimitive(Sphere) 실패");
+                continue;
+            }
+
             marbleGO.name = $"Marble_{i + 1}";
             marbleGO.transform.position = laneStartPos;
             marbleGO.transform.localScale = Vector3.one * 1.0f;
 
-            // ★ 구슬의 SphereCollider에 낮은 마찰 물리 재질 적용
+            // 2) 콜라이더 확인
             SphereCollider sc = marbleGO.GetComponent<SphereCollider>();
-            if (sc != null && marblePhysicMaterial != null)
-                sc.sharedMaterial = marblePhysicMaterial;
+            if (sc == null)
+            {
+                Debug.LogError($"[MarbleRace] Marble {i}: SphereCollider 가 없습니다! Collider 타입 = {marbleGO.GetComponent<Collider>()?.GetType().Name ?? "없음"}");
 
+                // 혹시라도 진짜로 SphereCollider 를 못 붙이는 상황이면
+                // 최소한 다른 Collider 하나는 붙여서 굴러가게는 해보자
+                Collider anyCol = marbleGO.GetComponent<Collider>();
+                if (anyCol == null)
+                {
+                    Debug.LogWarning($"[MarbleRace] Marble {i}: BoxCollider 로 대체 시도");
+                    anyCol = marbleGO.AddComponent<BoxCollider>();
+                }
+            }
+            else if (marblePhysicMaterial != null)
+            {
+                sc.sharedMaterial = marblePhysicMaterial;
+            }
+
+            // 3) Rigidbody
             Rigidbody rb = marbleGO.AddComponent<Rigidbody>();
+            if (rb == null)
+            {
+                Debug.LogError($"[MarbleRace] Marble {i}: Rigidbody 추가 실패");
+                continue;
+            }
+
             rb.mass = 1f;
             rb.drag = 0f;
             rb.angularDrag = 0.01f;
 
+            // 4) Marble 스크립트
             Marble marble = marbleGO.AddComponent<Marble>();
+            if (marble == null)
+            {
+                Debug.LogError($"[MarbleRace] Marble {i}: Marble 컴포넌트 추가 실패");
+                continue;
+            }
+
             marble.laneIndex = i;
             marble.maxHeight = maxMarbleHeight;
 
+            // 5) 색상
             Renderer r = marbleGO.GetComponent<Renderer>();
             if (r != null)
             {
-                Material mat = new Material(Shader.Find("Standard"));
+                var mat = r.material;
                 mat.color = GetMarbleColor(i);
                 r.material = mat;
             }
+            else
+            {
+                Debug.LogWarning($"[MarbleRace] Marble {i}: Renderer 없음");
+            }
 
-            // 시작 부스터 (지금은 0이면 아무 힘 안 줌)
-            rb.AddForce(startForward * marbleStartImpulse, ForceMode.Impulse);
+            // 6) 시작 힘
+            if (marbleStartImpulse != 0f)
+            {
+                rb.AddForce(startForward * marbleStartImpulse, ForceMode.Impulse);
+            }
 
             marbles.Add(marble);
+
+            Debug.Log($"[MarbleRace] Marble {i} 생성 완료. collider={marbleGO.GetComponent<Collider>()?.GetType().Name ?? "없음"}");
         }
+
+        Debug.Log($"[MarbleRace] SpawnMarbles finished. marbles.Count={marbles.Count}");
     }
+
 
     private Color GetMarbleColor(int index)
     {

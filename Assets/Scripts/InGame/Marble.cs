@@ -11,7 +11,7 @@ public class Marble : MonoBehaviour
 
     [Header("벽 / 구슬 충돌 연출")]
     [Tooltip("옆 벽에 부딪혔을 때 안쪽으로 튕겨주는 힘 (VelocityChange)")]
-    public float wallBounceStrength = 0f;
+    public float wallBounceStrength = 1f;
 
     [Tooltip("뒤에서 박았을 때 앞에 있는 구슬에 줄 부스트 크기")]
     public float rearHitBoost = 1f;
@@ -21,25 +21,25 @@ public class Marble : MonoBehaviour
 
     [Header("Vertical Velocity Clamp")]
     [Tooltip("위로 튀는 최대 속도")]
-    public float maxUpwardVelocity = 0.1f;
+    public float maxUpwardVelocity = 1f;
 
     [Header("멈춤 방지 (경사 어시스트)")]
     [Tooltip("이 속도보다 느릴 때만 경사 어시스트를 건다")]
-    public float minMoveSpeed = 0.5f;
+    public float minMoveSpeed = 3f;
 
     [Tooltip("경사 방향으로 추가로 밀어주는 힘의 세기")]
-    public float slopeAssistStrength = 20f;
+    public float slopeAssistStrength = 10f;
 
     [Tooltip("이 값보다 작을 때만 '경사가 있다'고 보고 어시스트를 넣음 (1이면 완전 평지)")]
     [Range(0.0f, 1.0f)]
-    public float minSlopeNormalY = 0.98f;
+    public float minSlopeNormalY = 0.99f;
 
     [Header("트랙 이탈 판정 / 리스폰")]
     [Tooltip("트랙 중심선에서 이 거리 이상 벗어나면 트랙 이탈로 판정")]
     public float outOfTrackDistance = 50f;
 
     [Tooltip("리스폰 후 이 시간(초) 동안은 다시 리스폰하지 않음")]
-    public float respawnCooldown = 2.0f;
+    public float respawnCooldown = 1.0f;
 
     // 마지막으로 샘플링된 경로 인덱스
     private int lastClosestPathIndex = -1;
@@ -69,7 +69,10 @@ public class Marble : MonoBehaviour
         manager = MarbleRaceManager.Instance ?? FindObjectOfType<MarbleRaceManager>();
     }
 
-    void FixedUpdate()
+
+    public float minSpeed = 1.0f;      // 너무 느려지면
+    public float boostAccel = 5.0f;    // 트랙 진행 방향으로 인위적인 가속
+    /*void FixedUpdate()
     {
         // 1) 추가 중력 (이미 쓰던 값)
         float extraGravityMultiplier = 5.0f;
@@ -90,6 +93,23 @@ public class Marble : MonoBehaviour
 
         // 4) 트랙 이탈 감지 및 마지막 타일 exit 지점으로 리스폰
         HandleOutOfTrackAndRespawn();
+    }*/
+    void FixedUpdate()
+    {
+        if (MarbleRaceManager.Instance == null) return;
+
+        // 현재 위치에서 트랙 진행 방향
+        Vector3 forward = MarbleRaceManager.Instance
+                            .GetTrackForwardDirection(transform.position);
+
+        // 기본은 중력, 경사 타고 내려가고…
+
+        // ★ 너무 느려지면 트랙 방향으로 조금 밀어주기
+        float horizontalSpeed = new Vector3(rb.velocity.x, 0, rb.velocity.z).magnitude;
+        if (horizontalSpeed < minSpeed)
+        {
+            rb.AddForce(forward * boostAccel, ForceMode.Acceleration);
+        }
     }
 
     /// <summary>

@@ -142,7 +142,7 @@ MonoBehaviour:
     floorDepth: 0.2
     profilePower: 2
     wallHeight: 10
-    embossAmplitude: 0.1
+    embossAmplitude: 1
     embossFreqAlong: 2
     embossFreqAcross: 5
   exitProfile:
