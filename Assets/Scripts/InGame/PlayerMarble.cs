@@ -23,6 +23,8 @@ public class PlayerMarble : MonoBehaviour
 
     private void Awake()
     {
+        Physics.bounceThreshold = 0f;
+     
         _rb = GetComponent<Rigidbody>();
 
         // Rigidbody 기본 설정
@@ -30,7 +32,7 @@ public class PlayerMarble : MonoBehaviour
         _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         _rb.interpolation = RigidbodyInterpolation.Interpolate;
         _rb.drag = 0f;
-        _rb.angularDrag = 0.05f;
+        _rb.angularDrag = 0.03f;
 
         // Collider + PhysicMaterial 세팅 (마찰 최소)
         Collider col = GetComponent<Collider>();
@@ -60,12 +62,21 @@ public class PlayerMarble : MonoBehaviour
             return s_lowFrictionMat;
 
         s_lowFrictionMat = new PhysicMaterial("Marble_LowFriction");
-        s_lowFrictionMat.dynamicFriction = 0.0f;
-        s_lowFrictionMat.staticFriction = 0.0f;
-        s_lowFrictionMat.bounciness = 0.05f;
-        s_lowFrictionMat.frictionCombine = PhysicMaterialCombine.Minimum;
-        s_lowFrictionMat.bounceCombine = PhysicMaterialCombine.Minimum;
+
+        // 쇠구슬 느낌: 마찰은 적당히 낮게
+        s_lowFrictionMat.staticFriction = 0.2f;
+        s_lowFrictionMat.dynamicFriction = 0.15f;
+
+        // 서로 부딪힐 때 약간은 튀게 (0.2~0.35 사이에서 취향대로)
+        s_lowFrictionMat.bounciness = 0.25f;
+
+        // 구슬은 적당히 미끄럽게, 트랙(나무)이 더 거칠게 잡아주게 만들 예정이니 Average
+        s_lowFrictionMat.frictionCombine = PhysicMaterialCombine.Average;
+
+        // 튐은 가능한 한 크게 살려서, 구슬끼리 부딪히면 통통 튀도록
+        s_lowFrictionMat.bounceCombine = PhysicMaterialCombine.Maximum;
 
         return s_lowFrictionMat;
     }
+
 }

@@ -3,7 +3,7 @@
     "m_SelectedProcess": {
         "deviceId": "R5CY53N85SF",
         "name": "com.DefaultCompany.MarbleRace3D",
-        "processId": 27382,
+        "processId": 9888,
         "exited": false
     },
     "m_SelectedPriority": 0,
@@ -36,6 +36,12 @@
             "deviceId": "R5CY53N85SF",
             "name": "com.DefaultCompany.MarbleRace3D",
             "processId": 27382,
+            "exited": false
+        },
+        {
+            "deviceId": "R5CY53N85SF",
+            "name": "com.DefaultCompany.MarbleRace3D",
+            "processId": 9888,
             "exited": false
         }
     ],
