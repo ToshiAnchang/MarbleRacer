@@ -43,6 +43,17 @@ public class PlayerMarble : MonoBehaviour
 
     [SerializeField] private CheckpointZone _lastCheckpoint;
 
+    [Header("스타트 깔대기 회전 보정")]
+    [Tooltip("0보다 크면 깔대기 안에서 시계 방향 회전을 유지시키는 힘(가속도)")]
+    public float funnelSwirlForce = 10f;
+
+    [Tooltip("깔대기 중심(Transform). PlayerMarbleSpawner에서 StartFunnel.transform을 할당해 줍니다.")]
+    public Transform funnelCenter;
+
+    // 한 번 깔대기를 완전히 벗어나면 더 이상 회전 보정 안 함
+    private bool _leftFunnel = false;
+
+
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
@@ -118,6 +129,9 @@ public class PlayerMarble : MonoBehaviour
         Vector3 g = Physics.gravity * gravityMul;
         _rb.AddForce(g, ForceMode.Acceleration);
 
+        // ───── 스타트 깔대기 안에서 시계 방향 회전 보정 ─────
+        ApplyFunnelSwirl();
+
         // ───── 트랙 이탈 타이머 갱신 ─────
         if (_trackContactCount <= 0)
         {
@@ -149,6 +163,48 @@ public class PlayerMarble : MonoBehaviour
         {
             _airborneTimer = 0f;
         }
+    }
+
+    /// <summary>
+    /// 스타트 깔대기 안에 있는 동안, 시계 방향으로 계속 회전하도록
+    /// 옆 방향(접선) + 약간 중심 쪽으로 가속도를 살짝 준다.
+    /// </summary>
+    private void ApplyFunnelSwirl()
+    {
+        // 설정 안 했거나 이미 깔대기 벗어났으면 아무것도 안 함
+        if (funnelSwirlForce <= 0f || funnelCenter == null || _leftFunnel)
+            return;
+
+        Vector3 pos = transform.position;
+        Vector3 center = funnelCenter.position;
+
+        // "깔대기 안에 있다"는 걸 대충 Y값으로 판정
+        // → 깔대기 중심보다 어느 정도 위에 있을 때만 회전 보정
+        //   (너무 아래로 내려가면 주둥이/트랙으로 빠져야 하니까 보정 중단)
+        if (pos.y < center.y - 2f)
+        {
+            _leftFunnel = true;
+            return;
+        }
+
+        // 중심 기준 반지름 방향(수평 성분만)
+        Vector3 radial = pos - center;
+        radial.y = 0f;
+        if (radial.sqrMagnitude < 0.001f)
+            return;
+
+        radial.Normalize();
+
+        // 시계 방향 접선 벡터 (위에서 내려다 볼 때)
+        Vector3 tangentCW = Vector3.Cross(Vector3.up, radial);   // CW
+
+        // 너무 바깥으로 튀어나가지 않도록 약간 중심 쪽으로 끌어당기는 힘도 같이 줌
+        Vector3 inward = -radial;
+
+        // 접선 + 중심 방향을 섞어서 부드러운 궤도 유지
+        Vector3 swirlDir = (tangentCW * 0.8f + inward * 0.2f).normalized;
+
+        _rb.AddForce(swirlDir * funnelSwirlForce, ForceMode.Acceleration);
     }
 
     private void OnCollisionEnter(Collision collision)

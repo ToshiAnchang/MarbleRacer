@@ -30,7 +30,7 @@ public static class PlayerMarbleSpawner
 
         for (int i = 1; i <= playerCount; i++)
         {
-            string childName = $"StartPos{i}";
+            string childName = $"StartLane/StartPos{i}";
             Transform spawnPoint = root.Find(childName);
 
             if (spawnPoint == null)
@@ -52,8 +52,11 @@ public static class PlayerMarbleSpawner
             Rigidbody rb = marbleGO.AddComponent<Rigidbody>();
 
             PlayerMarble pm = marbleGO.AddComponent<PlayerMarble>();
-            //pm.gravityMultiplier = 3.0f; // 요청: 중력 3배
             pm.radius = 0.5f;           // 필요시 수정 가능
+
+            // ▶ 깔대기 중심 Transform 넘겨주기 (회전용)
+            if (startFunnel != null)
+                pm.funnelCenter = startFunnel.transform;
 
             // 머티리얼 색상 간단하게 플레이어마다 다르게
             Renderer rend = marbleGO.GetComponent<Renderer>();
