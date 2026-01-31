@@ -70,7 +70,18 @@ public class MarbleRaceManager : MonoBehaviour
 
     private Vector3 finishPosition;
 
+    [Header("Finish 비주얼 설정")]
+    [Tooltip("Finish 텍스트의 위치 조절 조절합니다.")]
+    public float finishVisualHeightOffset = 0.5f;
+
+    [Tooltip("결승 깃발에 사용할 Sprite 리소스 경로(Resources 기준). 비어 있으면 단색 깃발로 표시됩니다.")]
+    public string finishFlagSpritePath = "UI/FinishFlag";
+
+    [Tooltip("결승점 텍스트")]
+    public string finishText = "FINISH";
+
     private int laneCount;
+
 
     // =====================================================
     // Unity 생명주기
@@ -379,6 +390,12 @@ public class MarbleRaceManager : MonoBehaviour
             out playerMarbles
         );
 
+        // 3-1) 결과 매니저에 플레이어 목록 등록
+        if (RaceResultManager.Instance != null)
+        {
+            RaceResultManager.Instance.RegisterPlayers(playerMarbles);
+        }
+
         // 4) 카메라를 1번 구슬에 붙인다
         if (playerMarbles.Count > 0)
         {
@@ -393,8 +410,6 @@ public class MarbleRaceManager : MonoBehaviour
             }
         }
     }
-
-
 
     private void ClearTiles()
     {
@@ -722,7 +737,6 @@ public class MarbleRaceManager : MonoBehaviour
     // =====================================================
     // Finish 콜라이더 생성
     // =====================================================
-
     private void SetupFinishTrigger(GameObject lastTile, TrackTileGenerator gen)
     {
         // 마지막 타일의 끝(center) + 진행 방향을 얻는다
@@ -762,8 +776,18 @@ public class MarbleRaceManager : MonoBehaviour
         float triggerHeight = maxWallHeight + 1f;
         float triggerLength = Mathf.Max(4f, gen.tileLength * 0.25f);
 
+        // ───── floorDepth(바닥 깊이)를 반영해서 "실제 바닥 높이" 계산 ─────
+        float floorDepthAtExit = 0f;
+        if (gen.exitProfile != null) floorDepthAtExit = Mathf.Max(floorDepthAtExit, gen.exitProfile.floorDepth);
+        if (floorDepthAtExit <= 0f && gen.middleProfile != null) floorDepthAtExit = Mathf.Max(floorDepthAtExit, gen.middleProfile.floorDepth);
+        if (floorDepthAtExit <= 0f && gen.entryProfile != null) floorDepthAtExit = Mathf.Max(floorDepthAtExit, gen.entryProfile.floorDepth);
+
+        // center line(0)에서 floorDepth만큼 내려간 y가 실제 바닥 높이
+        Vector3 floorBaseWorld = exitCenterWorld - Vector3.up * floorDepthAtExit;
+
+        // 콜라이더 중심 = 바닥에서 절반 높이 + 진행 방향으로 절반 길이만큼 앞
         Vector3 triggerCenter =
-            exitCenterWorld
+            floorBaseWorld
             + forward * (triggerLength * 0.5f)
             + Vector3.up * (triggerHeight * 0.5f);
 
@@ -775,5 +799,93 @@ public class MarbleRaceManager : MonoBehaviour
         col.isTrigger = true;
         col.size = new Vector3(triggerWidth, triggerHeight, triggerLength);
         col.center = Vector3.zero;
+
+        // FinishTrigger가 결승 도착을 감지할 수 있도록 센서 추가
+        go.AddComponent<FinishTriggerSensor>();
+
+        // 결승점 비주얼 생성 (텍스트 + 깃발)
+        CreateFinishVisual(go, triggerHeight);
     }
+
+    /// <summary>
+    /// FinishTrigger 위에 텍스트 + 깃발 비주얼을 생성합니다.
+    /// </summary>
+    private void CreateFinishVisual(GameObject triggerGO, float triggerHeight)
+    {
+        if (triggerGO == null) return;
+
+        Transform t = triggerGO.transform;
+
+        // 콜라이더 상단 기준 위치 계산
+        Vector3 up = t.up;
+        Vector3 visualPos =
+            t.position
+            + up * (triggerHeight * 0.5f + finishVisualHeightOffset);
+
+        // 루트 오브젝트
+        GameObject root = new GameObject("FinishVisual");
+        root.transform.SetParent(triggerGO.transform);
+        root.transform.position = visualPos;
+        root.transform.rotation = t.rotation;
+
+        // ───── FINISH 텍스트 (3D TextMesh) ─────
+        GameObject textGO = new GameObject("FinishText");
+        textGO.transform.SetParent(root.transform, false);
+        textGO.transform.localPosition = Vector3.zero;
+
+        TextMesh tm = textGO.AddComponent<TextMesh>();
+        tm.text = string.IsNullOrEmpty(finishText) ? "FINISH" : finishText;
+        tm.fontSize = 64;
+        tm.characterSize = 0.1f;
+        tm.anchor = TextAnchor.MiddleCenter;
+        tm.alignment = TextAlignment.Center;
+        tm.color = Color.yellow;
+
+        // ───── 깃발(Quad) ─────
+        GameObject flagGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        flagGO.name = "FinishFlag";
+        flagGO.transform.SetParent(root.transform, false);
+
+        // 텍스트 오른쪽 옆, 약간 위에 배치
+        flagGO.transform.localPosition = t.right * 0.8f + up * 0.3f;
+        flagGO.transform.localRotation = Quaternion.identity;
+        flagGO.transform.localScale = new Vector3(0.8f, 0.8f, 0.8f);
+
+        // 충돌 필요 없으니 콜라이더 제거
+        Collider flagCol = flagGO.GetComponent<Collider>();
+        if (flagCol != null)
+        {
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+                DestroyImmediate(flagCol);
+            else
+#endif
+                Destroy(flagCol);
+        }
+
+        MeshRenderer rend = flagGO.GetComponent<MeshRenderer>();
+
+        // Resources에서 스프라이트 로드 시도
+        Sprite flagSprite = null;
+        if (!string.IsNullOrEmpty(finishFlagSpritePath))
+        {
+            flagSprite = Resources.Load<Sprite>(finishFlagSpritePath);
+        }
+
+        if (flagSprite != null)
+        {
+            Material mat = new Material(Shader.Find("Unlit/Transparent"));
+            mat.mainTexture = flagSprite.texture;
+            rend.material = mat;
+        }
+        else
+        {
+            // 스프라이트 없으면 단색 재질
+            Material mat = new Material(Shader.Find("Unlit/Color"));
+            mat.color = Color.red;
+            rend.material = mat;
+        }
+    }
+
+
 }

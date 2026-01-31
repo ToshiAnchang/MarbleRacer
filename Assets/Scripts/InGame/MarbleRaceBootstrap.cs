@@ -47,16 +47,21 @@ public static class MarbleRaceBootstrap
     /// </summary>
     private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // 이미 씬 안에 MarbleRaceManager가 있으면 새로 안 만든다
-        if (Object.FindObjectOfType<MarbleRaceManager>() != null)
+        // MarbleRaceManager 보장
+        if (Object.FindObjectOfType<MarbleRaceManager>() == null)
         {
-            //Debug.Log($"[Bootstrap] MarbleRaceManager already exists in scene: {scene.name}");
-            return;
+            var go = new GameObject("MarbleRaceManager");
+            go.AddComponent<MarbleRaceManager>();
+            Debug.Log($"[Bootstrap] MarbleRaceManager created in scene: {scene.name}");
         }
 
-        var go = new GameObject("MarbleRaceManager");
-        go.AddComponent<MarbleRaceManager>();
-
-        Debug.Log($"[Bootstrap] MarbleRaceManager created in scene: {scene.name}");
+        // RaceResultManager 보장
+        if (Object.FindObjectOfType<RaceResultManager>() == null)
+        {
+            var resultGo = new GameObject("RaceResultManager");
+            resultGo.AddComponent<RaceResultManager>();
+            Debug.Log($"[Bootstrap] RaceResultManager created in scene: {scene.name}");
+        }
     }
+
 }

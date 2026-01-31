@@ -58,7 +58,7 @@ public class PhysicsManager : MonoBehaviour
     public float trackStaticFriction = 0.3f;
 
     [Tooltip("트랙 이동 마찰 계수 (dynamicFriction)")]
-    public float trackDynamicFriction = 0.15f;
+    public float trackDynamicFriction = 0.2f;
 
     [Range(0f, 1f)]
     [Tooltip("트랙 탄성 계수 (bounciness). 보통 0으로 둡니다.")]
@@ -79,11 +79,11 @@ public class PhysicsManager : MonoBehaviour
     public float marbleStaticFriction = 0.1f;
 
     [Tooltip("구슬 동마찰 계수 (dynamicFriction)")]
-    public float marbleDynamicFriction = 0.1f;
+    public float marbleDynamicFriction = 0.2f;
 
     [Range(0f, 1f)]
     [Tooltip("구슬 탄성 계수 (bounciness). 구슬끼리 살짝 튀게 하려면 0.2~0.3 정도.")]
-    public float marbleBounciness = 0.3f;
+    public float marbleBounciness = 0.0f;
 
     [Tooltip("구슬 마찰 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
     public PhysicMaterialCombine marbleFrictionCombine = PhysicMaterialCombine.Average;

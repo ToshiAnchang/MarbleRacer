@@ -97,7 +97,6 @@ public static class StartPosCalculator
 
         // YZ 평면 상의 3개 포인트 (2차 베지어)
         float y0 = -funnel.funnelHeight;
-        float z0 = 0f;
 
         float y2 = -funnel.funnelHeight - funnel.spoutLength;
         float z2 = funnel.spoutBendOffsetZ;
