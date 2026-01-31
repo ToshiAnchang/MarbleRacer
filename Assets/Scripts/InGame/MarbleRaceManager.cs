@@ -810,6 +810,9 @@ public class MarbleRaceManager : MonoBehaviour
     /// <summary>
     /// FinishTrigger 위에 텍스트 + 깃발 비주얼을 생성합니다.
     /// </summary>
+    /// <summary>
+    /// FinishTrigger 위에 텍스트 + 깃발 비주얼을 생성합니다.
+    /// </summary>
     private void CreateFinishVisual(GameObject triggerGO, float triggerHeight)
     {
         if (triggerGO == null) return;
@@ -864,6 +867,8 @@ public class MarbleRaceManager : MonoBehaviour
         }
 
         MeshRenderer rend = flagGO.GetComponent<MeshRenderer>();
+        if (rend == null)
+            return;
 
         // Resources에서 스프라이트 로드 시도
         Sprite flagSprite = null;
@@ -872,20 +877,22 @@ public class MarbleRaceManager : MonoBehaviour
             flagSprite = Resources.Load<Sprite>(finishFlagSpritePath);
         }
 
-        if (flagSprite != null)
+        // ※ 여기서는 새 Material(Shader)을 만들지 않고,
+        //    Quad가 원래 가지고 있는 material만 수정합니다.
+        Material mat = rend.material;
+
+        if (flagSprite != null && flagSprite.texture != null)
         {
-            Material mat = new Material(Shader.Find("Unlit/Transparent"));
             mat.mainTexture = flagSprite.texture;
-            rend.material = mat;
+            // 필요하면 타일링 등 추가 조정 가능
         }
         else
         {
             // 스프라이트 없으면 단색 재질
-            Material mat = new Material(Shader.Find("Unlit/Color"));
             mat.color = Color.red;
-            rend.material = mat;
         }
     }
+
 
 
 }
