@@ -166,9 +166,22 @@ public class TrackTileGenerator : MonoBehaviour
             GenerateMesh();
         }
 
+        // 메쉬 콜라이더에 메쉬 적용
         _meshCollider.sharedMesh = _meshFilter.sharedMesh;
         _meshCollider.convex = false;
+
+        // ───────── 여기서 트랙용 PhysicMaterial 적용 ─────────
+        PhysicsManager pm = PhysicsManager.Instance;
+        if (pm != null)
+        {
+            PhysicMaterial trackMat = pm.GetTrackMaterial();
+            if (trackMat != null)
+            {
+                _meshCollider.sharedMaterial = trackMat;
+            }
+        }
     }
+
 
     // =====================================================
     // 프로파일 보간 / 샘플링

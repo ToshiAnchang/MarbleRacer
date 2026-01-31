@@ -52,7 +52,7 @@ public static class PlayerMarbleSpawner
             Rigidbody rb = marbleGO.AddComponent<Rigidbody>();
 
             PlayerMarble pm = marbleGO.AddComponent<PlayerMarble>();
-            pm.gravityMultiplier = 3.0f; // 요청: 중력 3배
+            //pm.gravityMultiplier = 3.0f; // 요청: 중력 3배
             pm.radius = 0.5f;           // 필요시 수정 가능
 
             // 머티리얼 색상 간단하게 플레이어마다 다르게

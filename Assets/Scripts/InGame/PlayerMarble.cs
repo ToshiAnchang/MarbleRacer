@@ -3,42 +3,48 @@
 /// <summary>
 /// 플레이어 구슬 하나의 물리 동작.
 /// - Rigidbody / Collider 자동 보장
-/// - 마찰력 최소인 PhysicMaterial 자동 생성/적용
-/// - 중력 가속도 3배 (전역 Physics.gravity 는 그대로 두고, AddForce 로 추가)
+/// - MarblePhysicsManager 에서 물리 재질 / 중력 / 기본값을 받아 사용
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(Collider))]
 public class PlayerMarble : MonoBehaviour
 {
-    [Header("중력 배수 (1 = 기본 중력)")]
-    public float gravityMultiplier = 3.0f;
+    [Header("중력 배수 오버라이드 (0 이하이면 매니저 값 사용)")]
+    [Tooltip("0 이하이면 MarblePhysicsManager.globalGravityMultiplier 를 사용합니다.")]
+    public float gravityMultiplierOverride = 0f;
 
-    [Header("구슬 반지름 (비주얼 스케일과는 별도, 참고용 옵션)")]
+    [Header("구슬 반지름 (비주얼 스케일과는 별도, Collider용)")]
     public float radius = 0.5f;
 
-    // 모든 구슬이 공유하는 저마찰 PhysicMaterial
-    private static PhysicMaterial s_lowFrictionMat;
-
     private Rigidbody _rb;
+    private PhysicsManager _physicsManager;
 
     private void Awake()
     {
-        Physics.bounceThreshold = 0f;
-     
         _rb = GetComponent<Rigidbody>();
-
-        // Rigidbody 기본 설정
-        _rb.useGravity = true;                         // 기본 중력 ON
-        _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        _rb.interpolation = RigidbodyInterpolation.Interpolate;
-        _rb.drag = 0f;
-        _rb.angularDrag = 0.03f;
-
-        // Collider + PhysicMaterial 세팅 (마찰 최소)
         Collider col = GetComponent<Collider>();
-        col.material = GetOrCreateLowFrictionMaterial();
 
-        // 구슬답게 SphereCollider 면 반지름을 radius 에 맞춰볼 수도 있음(선택사항)
+        // 물리 매니저 참조
+        _physicsManager = PhysicsManager.Instance;
+        if (_physicsManager == null)
+        {
+            Debug.LogWarning("[PlayerMarble] PhysicsManager 가 씬에 없습니다. 기본 Rigidbody/PhysicMaterial 설정으로 동작합니다.");
+
+            // 최소한의 방어 코드
+            _rb.useGravity = true;
+        }
+        else
+        {
+            // 구슬 Rigidbody 기본 세팅
+            _physicsManager.ConfigureMarbleRigidbody(_rb);
+
+            // 구슬용 PhysicMaterial 적용
+            PhysicMaterial marbleMat = _physicsManager.GetMarbleMaterial();
+            if (marbleMat != null)
+                col.material = marbleMat;
+        }
+
+        // 구슬 모양에 맞춰 반지름 세팅 (SphereCollider 인 경우에만)
         if (col is SphereCollider sphere)
         {
             sphere.radius = radius;
@@ -47,36 +53,16 @@ public class PlayerMarble : MonoBehaviour
 
     private void FixedUpdate()
     {
-        if (gravityMultiplier <= 1f)
+        if (_physicsManager == null)
             return;
 
-        // Physics.gravity 는 이미 한 번 적용되고 있으므로
-        // (gravityMultiplier - 1) 만큼 추가로 가속을 더해줘서 "체감 3배 중력" 구현
-        Vector3 extraGravity = (gravityMultiplier - 1f) * Physics.gravity;
-        _rb.AddForce(extraGravity, ForceMode.Acceleration);
+        // 실제로 사용할 중력 배수 결정
+        float gravityMul = gravityMultiplierOverride > 0f
+            ? gravityMultiplierOverride
+            : _physicsManager.globalGravityMultiplier;
+
+        // Physics.gravity 는 그대로 두고, 우리가 배수만큼 곱해서 적용
+        Vector3 g = Physics.gravity * gravityMul;
+        _rb.AddForce(g, ForceMode.Acceleration);
     }
-
-    private static PhysicMaterial GetOrCreateLowFrictionMaterial()
-    {
-        if (s_lowFrictionMat != null)
-            return s_lowFrictionMat;
-
-        s_lowFrictionMat = new PhysicMaterial("Marble_LowFriction");
-
-        // 쇠구슬 느낌: 마찰은 적당히 낮게
-        s_lowFrictionMat.staticFriction = 0.2f;
-        s_lowFrictionMat.dynamicFriction = 0.15f;
-
-        // 서로 부딪힐 때 약간은 튀게 (0.2~0.35 사이에서 취향대로)
-        s_lowFrictionMat.bounciness = 0.25f;
-
-        // 구슬은 적당히 미끄럽게, 트랙(나무)이 더 거칠게 잡아주게 만들 예정이니 Average
-        s_lowFrictionMat.frictionCombine = PhysicMaterialCombine.Average;
-
-        // 튐은 가능한 한 크게 살려서, 구슬끼리 부딪히면 통통 튀도록
-        s_lowFrictionMat.bounceCombine = PhysicMaterialCombine.Maximum;
-
-        return s_lowFrictionMat;
-    }
-
 }
