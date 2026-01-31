@@ -16,9 +16,16 @@ public class RaceResultManager : MonoBehaviour
 
     private readonly List<PlayerMarble> _players = new List<PlayerMarble>();
     private readonly HashSet<PlayerMarble> _finished = new HashSet<PlayerMarble>();
+    private readonly HashSet<PlayerMarble> _disqualified = new HashSet<PlayerMarble>();
 
-    private int _finishOrder = 0;
+    // 완주한 구슬 수
+    private int _finishCount = 0;
+
+    // 실격된 구슬 수
+    private int _dqCount = 0;
+
     private bool _restartScheduled = false;
+
 
     public int TotalPlayerCount => _players.Count;
 
@@ -40,12 +47,16 @@ public class RaceResultManager : MonoBehaviour
     {
         _players.Clear();
         _finished.Clear();
-        _finishOrder = 0;
+        _disqualified.Clear();
+
+        _finishCount = 0;
+        _dqCount = 0;
         _restartScheduled = false;
 
         if (players != null)
             _players.AddRange(players);
     }
+
 
     /// <summary>
     /// FinishTrigger에서 구슬이 들어왔다고 알려 줄 때 호출.
@@ -55,25 +66,66 @@ public class RaceResultManager : MonoBehaviour
         if (marble == null)
             return;
 
-        // 이미 들어온 구슬이면 무시
-        if (_finished.Contains(marble))
+        // 이미 결승/실격된 구슬이면 무시
+        if (_finished.Contains(marble) || _disqualified.Contains(marble))
             return;
 
         _finished.Add(marble);
-        _finishOrder++;
-        int rank = _finishOrder;
+        _finishCount++;
+        int rank = _finishCount;   // 1등부터 위에서부터 채움
 
-        // 1) 구슬의 이동 멈추기 - 즉시가 아니라 1초 후에 멈추도록 코루틴
-        StartCoroutine(StopMarbleAfterDelay(marble, 0.3f));
+        // 플레이어에게도 "완주" 상태 전달
+        marble.MarkFinished();
 
-        // 2) 구슬에 등수 숫자 표시
+        // 1초 뒤에 멈추도록 (앞에 구슬 때문에 피니쉬 못 찍는 문제 방지)
+        StartCoroutine(StopMarbleAfterDelay(marble, 1f));
+
+        // 등수 숫자 표시
         ShowRankOnMarble(marble.transform, rank);
 
-        // 3) 디버그 로그
+        // 로그
         Debug.Log($"[RaceResult] {marble.name} finished as #{rank}");
 
-        // 4) 전부 도착했으면 3초 후 재시작
-        if (!_restartScheduled && _players.Count > 0 && _finished.Count >= _players.Count)
+        // 모든 구슬이 (완주 or 실격) 처리되었으면 3초 뒤 재시작
+        if (!_restartScheduled && _players.Count > 0 &&
+            _finished.Count + _disqualified.Count >= _players.Count)
+        {
+            _restartScheduled = true;
+            StartCoroutine(RestartAfterDelay(3f));
+        }
+    }
+
+    /// <summary>
+    /// 플레이어가 트랙 이탈을 여러 번 해서 "실격" 처리될 때 호출.
+    /// 랭킹은 뒤에서부터 채워 넣는다.
+    /// </summary>
+    public void OnMarbleDisqualified(PlayerMarble marble)
+    {
+        if (marble == null)
+            return;
+
+        // 이미 완주/실격 처리된 경우 무시
+        if (_finished.Contains(marble) || _disqualified.Contains(marble))
+            return;
+
+        _disqualified.Add(marble);
+        _dqCount++;
+
+        int total = _players.Count > 0 ? _players.Count : (_finished.Count + _disqualified.Count);
+        // 예: 총 6명 → 첫 실격은 6등, 두 번째 실격은 5등 ...
+        int rank = total - _dqCount + 1;
+
+        // 플레이어 쪽에도 실격 상태 전달
+        marble.MarkDisqualified();
+
+        // 등수 숫자 표시
+        ShowRankOnMarble(marble.transform, rank);
+
+        Debug.Log($"[RaceResult] {marble.name} DISQUALIFIED, rank #{rank}");
+
+        // 모든 구슬이 (완주 or 실격) 처리되었으면 3초 뒤 재시작
+        if (!_restartScheduled && _players.Count > 0 &&
+            _finished.Count + _disqualified.Count >= _players.Count)
         {
             _restartScheduled = true;
             StartCoroutine(RestartAfterDelay(3f));

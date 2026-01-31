@@ -2,7 +2,7 @@
 
 /// <summary>
 /// 등수 텍스트가 항상 구슬 위에 떠 있고,
-/// 구슬의 회전과 상관없이 수직 + 카메라를 향하도록 만드는 빌보드.
+/// 구슬이 아무리 기울어도 수직 + 카메라를 향하도록 만드는 빌보드.
 /// </summary>
 public class RankBillboard : MonoBehaviour
 {
@@ -15,10 +15,9 @@ public class RankBillboard : MonoBehaviour
             return;
 
         // 위치: 구슬 위치 + 위로 heightOffset
-        Vector3 pos = target.position + Vector3.up * heightOffset;
-        transform.position = pos;
+        transform.position = target.position + Vector3.up * heightOffset;
 
-        // 회전: 카메라 쪽을 보되, 수직은 월드 Up 기준
+        // 회전: 카메라 쪽을 보되, 월드 Up 기준
         Camera cam = Camera.main;
         if (cam != null)
         {
@@ -31,7 +30,6 @@ public class RankBillboard : MonoBehaviour
         }
         else
         {
-            // 카메라가 없으면 그냥 월드 +Z 방향으로 세움
             transform.rotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
         }
     }

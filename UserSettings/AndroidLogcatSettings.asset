@@ -3,63 +3,39 @@
     "m_SelectedProcess": {
         "deviceId": "R5CY53N85SF",
         "name": "com.DefaultCompany.MarbleRace3D",
-        "processId": 18298,
-        "exited": false
+        "processId": 25441,
+        "exited": true
     },
     "m_SelectedPriority": 0,
     "m_KnownProcessesForSerialization": [
         {
             "deviceId": "R5CY53N85SF",
             "name": "com.DefaultCompany.MarbleRace3D",
-            "processId": 11893,
-            "exited": false
-        },
-        {
-            "deviceId": "R5CY53N85SF",
-            "name": "com.DefaultCompany.MarbleRace3D",
-            "processId": 17182,
-            "exited": false
-        },
-        {
-            "deviceId": "R5CY53N85SF",
-            "name": "com.DefaultCompany.MarbleRace3D",
-            "processId": 22438,
-            "exited": false
-        },
-        {
-            "deviceId": "R5CY53N85SF",
-            "name": "com.DefaultCompany.MarbleRace3D",
-            "processId": 25091,
-            "exited": false
-        },
-        {
-            "deviceId": "R5CY53N85SF",
-            "name": "com.DefaultCompany.MarbleRace3D",
-            "processId": 27382,
-            "exited": false
-        },
-        {
-            "deviceId": "R5CY53N85SF",
-            "name": "com.DefaultCompany.MarbleRace3D",
-            "processId": 9888,
-            "exited": false
-        },
-        {
-            "deviceId": "R5CY53N85SF",
-            "name": "com.DefaultCompany.MarbleRace3D",
             "processId": 10181,
-            "exited": false
+            "exited": true
         },
         {
             "deviceId": "R5CY53N85SF",
             "name": "com.DefaultCompany.MarbleRace3D",
             "processId": 15277,
-            "exited": false
+            "exited": true
         },
         {
             "deviceId": "R5CY53N85SF",
             "name": "com.DefaultCompany.MarbleRace3D",
             "processId": 18298,
+            "exited": true
+        },
+        {
+            "deviceId": "R5CY53N85SF",
+            "name": "com.DefaultCompany.MarbleRace3D",
+            "processId": 25441,
+            "exited": true
+        },
+        {
+            "deviceId": "R5CY53N85SF",
+            "name": "com.DefaultCompany.MarbleRace3D",
+            "processId": 27257,
             "exited": false
         }
     ],

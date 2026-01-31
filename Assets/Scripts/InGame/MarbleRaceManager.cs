@@ -564,6 +564,12 @@ public class MarbleRaceManager : MonoBehaviour
                 }
             }
 
+            // 2타일마다 하나씩 체크포인트 생성
+            if (i % 2 == 0)
+            {
+                CreateCheckpointForTile(tileGO, genInst, i);
+            }
+
             // Exit 기준으로 다음 타일 시작 위치/방향 갱신
             genInst.GetPathFrameLocal(
                 1f,
@@ -593,6 +599,52 @@ public class MarbleRaceManager : MonoBehaviour
         {
             SetupFinishTrigger(lastTile, lastGen);
         }
+    }
+
+    /// <summary>
+    /// 해당 타일 중간 지점에 체크포인트 콜라이더를 생성.
+    /// </summary>
+    private void CreateCheckpointForTile(GameObject tileGO, TrackTileGenerator genInst, int tileIndex)
+    {
+        if (tileGO == null || genInst == null)
+            return;
+
+        // 타일 중간 지점 기준
+        genInst.GetPathFrameLocal(
+            0.5f,
+            out Vector3 centerLocal,
+            out Vector3 forwardLocal,
+            out _
+        );
+
+        Vector3 centerWorld = tileGO.transform.TransformPoint(centerLocal);
+        Vector3 forwardWorld = tileGO.transform.TransformDirection(forwardLocal);
+        forwardWorld.y = 0f;
+        if (forwardWorld.sqrMagnitude < 0.0001f)
+            forwardWorld = Vector3.forward;
+        forwardWorld.Normalize();
+
+        GameObject cpGO = new GameObject($"Checkpoint_{tileIndex:D3}");
+        cpGO.transform.SetParent(transform);
+        cpGO.transform.position = centerWorld;
+        cpGO.transform.rotation = Quaternion.LookRotation(forwardWorld, Vector3.up);
+
+        BoxCollider col = cpGO.AddComponent<BoxCollider>();
+        col.isTrigger = true;
+
+        float trackWidth = 4f;
+        if (genInst.middleProfile != null)
+            trackWidth = genInst.middleProfile.trackWidth;
+        else if (genInst.entryProfile != null)
+            trackWidth = genInst.entryProfile.trackWidth;
+
+        // 트랙 단면 전체를 넉넉하게 덮도록 사이즈 설정
+        col.size = new Vector3(trackWidth + 1f, 5f, 5f);
+        col.center = Vector3.zero;
+
+        CheckpointZone zone = cpGO.AddComponent<CheckpointZone>();
+        zone.checkpointIndex = tileIndex;
+        // respawnHeightOffset / respawnForwardOffset 는 인스펙터에서 조절 가능
     }
 
     // =====================================================
