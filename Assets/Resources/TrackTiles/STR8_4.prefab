@@ -127,22 +127,22 @@ MonoBehaviour:
   segmentsAcross: 48
   autoGenerateInEditor: 1
   entryProfile:
-    profileId: 8
-    trackWidth: 8
+    profileId: 5
+    trackWidth: 5
     floorDepth: 0
     profilePower: 0.5
     wallHeight: 2
   middleProfile:
-    profileId: 6
-    trackWidth: 6
+    profileId: 5
+    trackWidth: 5
     floorDepth: 0
     profilePower: 0.5
     wallHeight: 2
   exitProfile:
-    profileId: 4
-    trackWidth: 4
+    profileId: 5
+    trackWidth: 5
     floorDepth: 0
     profilePower: 0.5
     wallHeight: 2
-  entryBlendRatio: 0.015
-  exitBlendRatio: 0.012
+  entryBlendRatio: 0
+  exitBlendRatio: 0
