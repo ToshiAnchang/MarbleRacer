@@ -22,7 +22,7 @@ public class PhysicsManager : MonoBehaviour
     // ───────────────────────────────── 전역 물리 설정 ─────────────────────────────────
     [Header("전역 물리 설정")]
     [Tooltip("Unity Physics에서 느린 충돌도 튐을 계산할지 여부를 결정하는 임계치.\n값이 낮을수록 약한 충돌에서도 bounciness가 적용됩니다.")]
-    public float bounceThreshold = 0.0f;
+    public float bounceThreshold = 0.5f;
 
     [Tooltip("구슬에 적용할 중력 배수. (1 = 기본 중력)\n구슬 쪽에서 Physics.gravity * globalGravityMultiplier 로 사용합니다.")]
     public float globalGravityMultiplier = 4.0f;
@@ -36,17 +36,17 @@ public class PhysicsManager : MonoBehaviour
     public float startStaticFriction = 0.0f;
 
     [Tooltip("깔대기 이동 마찰 계수 (dynamicFriction)")]
-    public float startDynamicFriction = 0.1f;
+    public float startDynamicFriction = 0.0f;
 
     [Range(0f, 1f)]
     [Tooltip("깔대기 탄성 계수 (bounciness). 보통 0으로 둡니다.")]
     public float startBounciness = 0.5f;
 
     [Tooltip("깔대기 마찰 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
-    public PhysicMaterialCombine startFrictionCombine = PhysicMaterialCombine.Maximum;
+    public PhysicMaterialCombine startFrictionCombine = PhysicMaterialCombine.Average;
 
     [Tooltip("깔대기 탄성 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
-    public PhysicMaterialCombine startBounceCombine = PhysicMaterialCombine.Maximum;
+    public PhysicMaterialCombine startBounceCombine = PhysicMaterialCombine.Average;
 
 
     // ───────────────────────────────── 트랙 PhysicMaterial ─────────────────────────────────
@@ -58,11 +58,11 @@ public class PhysicsManager : MonoBehaviour
     public float trackStaticFriction = 0.3f;
 
     [Tooltip("트랙 이동 마찰 계수 (dynamicFriction)")]
-    public float trackDynamicFriction = 0.1f;
+    public float trackDynamicFriction = 0.01f;
 
     [Range(0f, 1f)]
     [Tooltip("트랙 탄성 계수 (bounciness). 보통 0으로 둡니다.")]
-    public float trackBounciness = 0.1f;
+    public float trackBounciness = 0f;
 
     [Tooltip("트랙 마찰 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
     public PhysicMaterialCombine trackFrictionCombine = PhysicMaterialCombine.Maximum;
@@ -76,14 +76,14 @@ public class PhysicsManager : MonoBehaviour
     public PhysicMaterial marbleMaterial;
 
     [Tooltip("구슬 정지 마찰 계수 (staticFriction)")]
-    public float marbleStaticFriction = 0.1f;
+    public float marbleStaticFriction = 0.05f;
 
-    [Tooltip("구슬 동마찰 계수 (dynamicFriction)")]
-    public float marbleDynamicFriction = 0.05f;
+    [Tooltip("구슬 이동마찰 계수 (dynamicFriction)")]
+    public float marbleDynamicFriction = 0.01f;
 
     [Range(0f, 1f)]
     [Tooltip("구슬 탄성 계수 (bounciness). 구슬끼리 살짝 튀게 하려면 0.2~0.3 정도.")]
-    public float marbleBounciness = 0.0f;
+    public float marbleBounciness = 0.2f;
 
     [Tooltip("구슬 마찰 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
     public PhysicMaterialCombine marbleFrictionCombine = PhysicMaterialCombine.Average;
@@ -94,7 +94,7 @@ public class PhysicsManager : MonoBehaviour
     // ───────────────────────────────── 구슬 Rigidbody 기본값 ─────────────────────────────────
     [Header("구슬 Rigidbody 기본값")]
     [Tooltip("공기저항(선형 Drag)")]
-    public float marbleDrag = 0.0f;
+    public float marbleDrag = 0.5f;
 
     [Tooltip("회전 공기저항(Angular Drag)")]
     public float marbleAngularDrag = 0.03f;

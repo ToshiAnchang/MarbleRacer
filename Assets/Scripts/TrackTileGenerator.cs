@@ -35,8 +35,10 @@ public class TrackTileGenerator : MonoBehaviour
     public float curveAngleDeg = 45f;
 
     [Header("경사 설정")]
-    [Tooltip("타일 시작점 대비 끝점의 높이 차이 (양수 = 오르막, 음수 = 내리막)")]
-    public float slopeDeltaHeight = -10f;
+    [Tooltip("타일의 진행 방향 경사 각도(도 단위). 양수 = 오르막, 음수 = 내리막")]
+    [Range(-45f, 45f)]
+    public float slopeAngleDeg = -12f;   // 기본값은 적당히 내리막 느낌으로
+
 
     // ───────────────────────────────── 메쉬 해상도 ─────────────────────────────────
 
@@ -127,6 +129,9 @@ public class TrackTileGenerator : MonoBehaviour
         tileLength = Mathf.Max(0.1f, tileLength);
         curveAngleDeg = Mathf.Max(0.01f, curveAngleDeg);
 
+        // 경사 각도는 -45° ~ 45° 사이로 제한
+        slopeAngleDeg = Mathf.Clamp(slopeAngleDeg, -45f, 45f);
+
         EnsureProfiles();
 
         if (!Application.isPlaying && autoGenerateInEditor)
@@ -134,6 +139,7 @@ public class TrackTileGenerator : MonoBehaviour
             EnsureRuntimeMesh(forceRemesh: true);
         }
     }
+
 
     // =====================================================
     // 프로파일 / 메쉬 보장
@@ -235,8 +241,13 @@ public class TrackTileGenerator : MonoBehaviour
 
     /// <summary>
     /// t(0~1)에 해당하는 경로 중심점/전방/오른쪽 벡터를 로컬 좌표계에서 반환.
-    /// - x,z 경로: 직선/커브
-    /// - y 경로: 시작 높이 0 → 끝 높이 slopeDeltaHeight (양 끝 기울기 0, Hermite)
+    /// - XZ 경로: 직선 / 좌커브 / 우커브
+    /// - Y 경로(경사):
+    ///   ▷ slopeAngleDeg(도 단위)로 경사 강도 결정
+    ///   ▷ 기본은 "전체 직선 경사"
+    ///   ▷ entryBlendRatio > 0 이면: 시작 구간만 부드럽게 이어주고
+    ///   ▷ exitBlendRatio  > 0 이면: 끝 구간만 부드럽게 이어줌
+    ///   ▷ 둘 다 0이면: 타일 전체가 완전히 일정한 경사
     /// </summary>
     public void GetPathFrameLocal(float t, out Vector3 center, out Vector3 forward, out Vector3 right)
     {
@@ -245,13 +256,18 @@ public class TrackTileGenerator : MonoBehaviour
         Vector3 baseCenter;
         Vector3 baseForward;
 
+        // ─────────────────────────────────
+        // 수평 경로(XZ): 직선 / 좌커브 / 우커브
+        // ─────────────────────────────────
         if (tileType == TileType.Straight)
         {
+            // 직선: Z 방향으로 tileLength 만큼
             baseCenter = new Vector3(0f, 0f, t * tileLength);
             baseForward = Vector3.forward;
         }
         else
         {
+            // 커브: 호 길이 = tileLength, 회전 각도 = curveAngleDeg
             float totalAngleRad = Mathf.Deg2Rad * curveAngleDeg;
             float radius = tileLength / totalAngleRad;    // s = rθ → r = s/θ
 
@@ -265,6 +281,7 @@ public class TrackTileGenerator : MonoBehaviour
 
             baseCenter = new Vector3(x, 0f, z);
 
+            // 탄젠트(수평 방향)
             float dx = radius * Mathf.Sin(angleRad);
             float dz = radius * Mathf.Cos(angleRad);
             if (tileType == TileType.CurveRight)
@@ -273,25 +290,95 @@ public class TrackTileGenerator : MonoBehaviour
             baseForward = new Vector3(dx, 0f, dz).normalized;
         }
 
-        // y(높이): Hermite 커브로 양 끝 기울기 0인 부드러운 경사
+        // ─────────────────────────────────
+        // 높이(Y): 각도 기반 경사
+        //   - slopeAngleDeg(도)를 가지고 전체 높이 변화량(slopeDeltaHeight)을 계산
+        //   - 기본은 "직선 경사"
+        //   - entryBlendRatio > 0 → 시작 부분만 부드럽게
+        //   - exitBlendRatio  > 0 → 끝 부분만 부드럽게
+        // ─────────────────────────────────
         float height = 0f;
         float dHeightDt = 0f;
 
-        if (Mathf.Abs(slopeDeltaHeight) > 0.0001f)
+        if (Mathf.Abs(slopeAngleDeg) > 0.01f)
         {
-            float t2 = t * t;
-            float t3 = t2 * t;
+            // 각도(도) → 라디안
+            float rad = slopeAngleDeg * Mathf.Deg2Rad;
 
-            height = slopeDeltaHeight * (3f * t2 - 2f * t3);
-            dHeightDt = slopeDeltaHeight * (6f * t - 6f * t2);
+            // 전체 높이 변화량: "길이 * tan(각도)"
+            float slopeDeltaHeight = Mathf.Tan(rad) * tileLength;
+
+            // 기본값: 시작~끝까지 완전한 직선 경사
+            height = slopeDeltaHeight * t;
+            dHeightDt = slopeDeltaHeight;
+
+            // 엔트리/엑싯 블렌드 구간 (0~1 사이)
+            float eBlendEnd = Mathf.Clamp01(entryBlendRatio);
+            float xBlendStart = 1f - Mathf.Clamp01(exitBlendRatio);
+
+            // ───── 엔트리 쪽 부드러운 연결 (0 ~ eBlendEnd) ─────
+            if (entryBlendRatio > 0f && t < eBlendEnd)
+            {
+                // 구간 [0, eBlendEnd] 를 s ∈ [0,1] 로 노멀라이즈
+                float te = Mathf.Max(0.0001f, eBlendEnd);
+                float s = t / te;
+                float s2 = s * s;
+                float s3 = s2 * s;
+
+                // 엔드포인트:
+                //  s=0 → y=0, dy/dt=0
+                //  s=1 → y = slopeDeltaHeight * te, dy/dt = slopeDeltaHeight
+                //
+                // 유도된 Hermite 식:
+                //  h(s)      = slopeDeltaHeight * te * (2 s^2 - s^3)
+                //  dh/dt(s)  = slopeDeltaHeight * (4 s - 3 s^2)
+                height = slopeDeltaHeight * te * (2f * s2 - s3);
+                dHeightDt = slopeDeltaHeight * (4f * s - 3f * s2);
+            }
+
+            // ───── 엑싯 쪽 부드러운 연결 (xBlendStart ~ 1) ─────
+            if (exitBlendRatio > 0f && t > xBlendStart)
+            {
+                float tx = xBlendStart;
+                float oneMinusTx = Mathf.Max(0.0001f, 1f - tx);
+
+                // 구간 [tx, 1] 를 s ∈ [0,1] 로 노멀라이즈
+                float s = (t - tx) / oneMinusTx;
+                float s2 = s * s;
+                float s3 = s2 * s;
+
+                // 엔드포인트:
+                //  s=0 (t=tx) → y0 = slopeDeltaHeight * tx, dy/dt = slopeDeltaHeight
+                //  s=1 (t=1)  → y1 = slopeDeltaHeight * 1 , dy/dt = 0
+                //
+                // 유도된 Hermite 식:
+                //  h(s) = slopeDeltaHeight * ( s^3*tx - s^3 - s^2*tx + s^2 - s*tx + s + tx )
+                //  dh/dt(s) = slopeDeltaHeight * ( 3*s^2*tx - 3*s^2 - 2*s*tx + 2*s - tx + 1 ) / (1 - tx)
+                float term =
+                    s3 * tx - s3 -
+                    s2 * tx + s2 -
+                    s * tx + s +
+                    tx;
+
+                height = slopeDeltaHeight * term;
+
+                float dhdsFactor =
+                    3f * s2 * tx - 3f * s2 -
+                    2f * s * tx + 2f * s -
+                    tx + 1f;
+
+                dHeightDt = slopeDeltaHeight * (dhdsFactor / oneMinusTx);
+            }
         }
 
+        // 최종 중심점 = 수평 경로 + 높이
         center = baseCenter;
         center.y = height;
 
+        // 경사까지 포함한 탄젠트 벡터
         Vector3 tangent = new Vector3(
             baseForward.x,
-            dHeightDt,
+            dHeightDt,       // y는 t에 대한 변화량을 그대로 사용
             baseForward.z
         );
 
@@ -300,6 +387,7 @@ public class TrackTileGenerator : MonoBehaviour
 
         forward = tangent.normalized;
 
+        // 수평 기준 right 벡터 (단면 생성/카메라용)
         Vector3 flatFwd = new Vector3(forward.x, 0f, forward.z);
         if (flatFwd.sqrMagnitude < 1e-6f)
             flatFwd = Vector3.forward;
