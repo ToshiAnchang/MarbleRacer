@@ -55,17 +55,17 @@ public class PhysicsManager : MonoBehaviour
     public PhysicMaterial trackMaterial;
 
     [Tooltip("트랙 정지 마찰 계수 (staticFriction)")]
-    public float trackStaticFriction = 0.3f;
+    public float trackStaticFriction = 0.0f;
 
     [Tooltip("트랙 이동 마찰 계수 (dynamicFriction)")]
-    public float trackDynamicFriction = 0.01f;
+    public float trackDynamicFriction = 0.0f;
 
     [Range(0f, 1f)]
     [Tooltip("트랙 탄성 계수 (bounciness). 보통 0으로 둡니다.")]
     public float trackBounciness = 0f;
 
     [Tooltip("트랙 마찰 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
-    public PhysicMaterialCombine trackFrictionCombine = PhysicMaterialCombine.Maximum;
+    public PhysicMaterialCombine trackFrictionCombine = PhysicMaterialCombine.Minimum;
 
     [Tooltip("트랙 탄성 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
     public PhysicMaterialCombine trackBounceCombine = PhysicMaterialCombine.Minimum;
@@ -76,10 +76,10 @@ public class PhysicsManager : MonoBehaviour
     public PhysicMaterial marbleMaterial;
 
     [Tooltip("구슬 정지 마찰 계수 (staticFriction)")]
-    public float marbleStaticFriction = 0.05f;
+    public float marbleStaticFriction = 0.0f;
 
     [Tooltip("구슬 이동마찰 계수 (dynamicFriction)")]
-    public float marbleDynamicFriction = 0.01f;
+    public float marbleDynamicFriction = 0.0f;
 
     [Range(0f, 1f)]
     [Tooltip("구슬 탄성 계수 (bounciness). 구슬끼리 살짝 튀게 하려면 0.2~0.3 정도.")]
@@ -91,10 +91,14 @@ public class PhysicsManager : MonoBehaviour
     [Tooltip("구슬 탄성 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
     public PhysicMaterialCombine marbleBounceCombine = PhysicMaterialCombine.Maximum;
 
+    [Header("구글 스타트 깔대기 회전 보정")]
+    [Tooltip("0보다 크면 깔대기 안에서 시계 방향 회전을 유지시키는 힘(가속도)")]
+    public float funnelSwirlForce = 7f;
+
     // ───────────────────────────────── 구슬 Rigidbody 기본값 ─────────────────────────────────
     [Header("구슬 Rigidbody 기본값")]
     [Tooltip("공기저항(선형 Drag)")]
-    public float marbleDrag = 0.5f;
+    public float marbleDrag = 0.1f;
 
     [Tooltip("회전 공기저항(Angular Drag)")]
     public float marbleAngularDrag = 0.03f;

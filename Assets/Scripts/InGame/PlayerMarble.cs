@@ -11,6 +11,19 @@ using UnityEngine;
 [RequireComponent(typeof(Collider))]
 public class PlayerMarble : MonoBehaviour
 {
+    [Header("유령 캐릭터 공 위에 지정하기")]
+    [Tooltip("리소스 경로 (Resources/Character/Ghost)")]
+    [SerializeField] private string ghostPath = "Character/Ghost";
+    [Tooltip("공 기준 고스트 위치 오프셋")]
+    [SerializeField] private Vector3 ghostOffset = new Vector3(0, 0.5f, 0);
+    private Transform ghostTransform;       // 인스턴스 된 고스트    
+
+    [Header("유령 방향 설정")]
+    [SerializeField] private bool ghostHorizontalOnly = true;   // 수평(XZ) 방향만 볼지 여부
+    [SerializeField] private Vector3 ghostDefaultDir = Vector3.forward; // 초기 기본 방향
+
+    private Vector3 _ghostLastMoveDir;  // 마지막 이동 방향
+
     [Header("중력 배수 오버라이드 (0 이하이면 매니저 값 사용)")]
     [Tooltip("0 이하이면 MarblePhysicsManager.globalGravityMultiplier 를 사용합니다.")]
     public float gravityMultiplierOverride = 0f;
@@ -43,9 +56,6 @@ public class PlayerMarble : MonoBehaviour
 
     [SerializeField] private CheckpointZone _lastCheckpoint;
 
-    [Header("스타트 깔대기 회전 보정")]
-    [Tooltip("0보다 크면 깔대기 안에서 시계 방향 회전을 유지시키는 힘(가속도)")]
-    public float funnelSwirlForce = 10f;
 
     [Tooltip("깔대기 중심(Transform). PlayerMarbleSpawner에서 StartFunnel.transform을 할당해 줍니다.")]
     public Transform funnelCenter;
@@ -53,6 +63,8 @@ public class PlayerMarble : MonoBehaviour
     // 한 번 깔대기를 완전히 벗어나면 더 이상 회전 보정 안 함
     private bool _leftFunnel = false;
 
+    // 랜덤 시드용(유니티 랜덤은 시드 설정이 전역이므로 시스템 시드를 사용)
+    System.Random myRand = new System.Random();
 
     private void Awake()
     {
@@ -88,6 +100,90 @@ public class PlayerMarble : MonoBehaviour
         // 최초 시작 위치/회전 저장 (체크포인트 없을 때 리스폰용)
         _initialPosition = transform.position;
         _initialRotation = transform.rotation;
+    }
+
+    float funnelSwirlForce;
+    void Start()
+    {
+        System.Random rand = new System.Random();
+        funnelSwirlForce = PhysicsManager.Instance != null
+            ? PhysicsManager.Instance.funnelSwirlForce
+            : 8f;
+        funnelSwirlForce += (float)rand.NextDouble() * 2f -1f; // -1 ~ +1 랜덤 보정
+        Debug.Log($"[★★★★] {name} funnelSwirlForce={funnelSwirlForce}");
+
+        // 1. 프리팹 로드
+        GameObject ghostPrefab = Resources.Load<GameObject>(ghostPath);
+        if (ghostPrefab == null)
+        {
+            Debug.LogError($"Ghost 프리팹을 찾을 수 없습니다. 경로 확인: Resources/{ghostPath}");
+            return;
+        }
+
+        // 2. 공 주변에 고스트 생성 (일단 부모 없이)
+        Vector3 spawnPos = transform.position + ghostOffset;
+        GameObject ghostInstance = Instantiate(
+            ghostPrefab,
+            spawnPos,
+            ghostPrefab.transform.rotation   // 프리팹의 기본 회전 사용
+        );
+
+        // 3. 나중에 회전 고정할 수 있게 참조 저장
+        ghostTransform = ghostInstance.transform;
+
+        // 4. 공의 자식으로 붙이되, 월드 위치/회전은 유지 (true)
+        ghostTransform.SetParent(transform, true);
+
+        // 5.고스트가 처음에 바라볼 기본 방향 설정
+        // (대부분 트랙 진행 방향 or 현재 transform.forward 사용)
+        _ghostLastMoveDir = ghostDefaultDir;
+        if (_ghostLastMoveDir.sqrMagnitude < 0.0001f)
+            _ghostLastMoveDir = transform.forward;
+
+        if (ghostHorizontalOnly)
+        {
+            _ghostLastMoveDir.y = 0f;
+            if (_ghostLastMoveDir.sqrMagnitude > 0.0001f)
+                _ghostLastMoveDir.Normalize();
+        }
+    }
+
+    void LateUpdate()
+    {
+        if (ghostTransform == null) return;
+
+        // 1) 위치는 공 + 오프셋 따라가게
+        ghostTransform.position = transform.position + ghostOffset;
+
+        // 2) 이동 방향 계산 (Rigidbody 속도)
+        Vector3 vel = _rb != null ? _rb.velocity : Vector3.zero;
+        Vector3 moveDir = vel;
+
+        // 속도가 너무 느리면 → 마지막 방향 유지
+        if (moveDir.sqrMagnitude > 0.0001f)
+        {
+            if (ghostHorizontalOnly)
+            {
+                // 수평(XZ) 방향만 사용하고 싶으면 Y를 0으로
+                moveDir.y = 0f;
+            }
+
+            if (moveDir.sqrMagnitude > 0.0001f)
+            {
+                moveDir.Normalize();
+                _ghostLastMoveDir = moveDir;
+            }
+        }
+        else
+        {
+            moveDir = _ghostLastMoveDir;
+        }
+
+        // 3) 최종적으로 이동 방향을 바라보게 회전
+        if (moveDir.sqrMagnitude > 0.0001f)
+        {
+            ghostTransform.rotation = Quaternion.LookRotation(moveDir, Vector3.up);
+        }
     }
 
     private void FixedUpdate()
@@ -171,7 +267,6 @@ public class PlayerMarble : MonoBehaviour
     /// </summary>
     private void ApplyFunnelSwirl()
     {
-        // 설정 안 했거나 이미 깔대기 벗어났으면 아무것도 안 함
         if (funnelSwirlForce <= 0f || funnelCenter == null || _leftFunnel)
             return;
 
@@ -312,6 +407,9 @@ public class PlayerMarble : MonoBehaviour
         const float respawnPushForce = 5f;
         _rb.AddForce(forward * respawnPushForce, ForceMode.VelocityChange);
         Debug.Log($"[PlayerMarble] {name} respawn push forward={forward * respawnPushForce}");
+
+        // 고스트 마지막 이동 방향도 리스폰 방향으로 맞춰주기
+        _ghostLastMoveDir = forward;
 
         // 상태 리셋
         _airborneTimer = 0f;
