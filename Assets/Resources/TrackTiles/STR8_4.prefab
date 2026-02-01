@@ -120,28 +120,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tileType: 0
-  tileLength: 50
+  tileLength: 100
   curveAngleDeg: 90
-  slopeDeltaHeight: -20
+  slopeDeltaHeight: -10
   segmentsAlong: 64
   segmentsAcross: 48
   autoGenerateInEditor: 1
   entryProfile:
     profileId: 8
     trackWidth: 8
-    floorDepth: 2
+    floorDepth: 0
     profilePower: 0.5
     wallHeight: 2
   middleProfile:
     profileId: 6
     trackWidth: 6
-    floorDepth: 2
+    floorDepth: 0
     profilePower: 0.5
     wallHeight: 2
   exitProfile:
     profileId: 4
     trackWidth: 4
-    floorDepth: 2
+    floorDepth: 0
     profilePower: 0.5
     wallHeight: 2
   entryBlendRatio: 0.2

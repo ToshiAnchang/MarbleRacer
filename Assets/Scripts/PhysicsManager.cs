@@ -36,7 +36,7 @@ public class PhysicsManager : MonoBehaviour
     public float startStaticFriction = 0.0f;
 
     [Tooltip("깔대기 이동 마찰 계수 (dynamicFriction)")]
-    public float startDynamicFriction = 0.0f;
+    public float startDynamicFriction = 0.1f;
 
     [Range(0f, 1f)]
     [Tooltip("깔대기 탄성 계수 (bounciness). 보통 0으로 둡니다.")]
@@ -58,7 +58,7 @@ public class PhysicsManager : MonoBehaviour
     public float trackStaticFriction = 0.3f;
 
     [Tooltip("트랙 이동 마찰 계수 (dynamicFriction)")]
-    public float trackDynamicFriction = 0.2f;
+    public float trackDynamicFriction = 0.1f;
 
     [Range(0f, 1f)]
     [Tooltip("트랙 탄성 계수 (bounciness). 보통 0으로 둡니다.")]
@@ -79,7 +79,7 @@ public class PhysicsManager : MonoBehaviour
     public float marbleStaticFriction = 0.1f;
 
     [Tooltip("구슬 동마찰 계수 (dynamicFriction)")]
-    public float marbleDynamicFriction = 0.2f;
+    public float marbleDynamicFriction = 0.05f;
 
     [Range(0f, 1f)]
     [Tooltip("구슬 탄성 계수 (bounciness). 구슬끼리 살짝 튀게 하려면 0.2~0.3 정도.")]

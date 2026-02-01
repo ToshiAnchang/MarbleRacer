@@ -38,7 +38,7 @@ public class MarbleRaceManager : MonoBehaviour
 
     [Tooltip("깔대기 주둥이 끝에서 첫 타일 entry까지의 오프셋 (x=좌우, y=위/아래, z=앞/뒤)")]
     
-    public Vector3 firstTileOffsetFromSpoutExit = new Vector3(0f, -0.5f, 2f);
+    public Vector3 firstTileOffsetFromSpoutExit = new Vector3(0f, -1.5f, 0f);
     // 생성된 깔대기 인스턴스 캐시 (씬 리셋 시 삭제용)
     
     private GameObject startFunnelInstance;
@@ -56,6 +56,15 @@ public class MarbleRaceManager : MonoBehaviour
 
     // 생성된 플레이어 구슬들을 보관 (카메라 등에서 사용할 수 있음)
     private List<PlayerMarble> playerMarbles = new List<PlayerMarble>();
+
+    /// <summary>
+    /// 현재 레이스에 참여 중인 플레이어 구슬 목록 (읽기 전용).
+    /// 미니맵, 연출 등에서 사용합니다.
+    /// </summary>
+    public System.Collections.Generic.IReadOnlyList<PlayerMarble> PlayerMarbles
+    {
+        get { return playerMarbles; }
+    }
 
 
 
@@ -408,6 +417,13 @@ public class MarbleRaceManager : MonoBehaviour
 
                 follow.target = playerMarbles[0].transform;
             }
+        }
+
+        // 5) 게임 시작 시 미니맵 생성 (한 번만)
+        if (FindObjectOfType<MinimapController>() == null)
+        {
+            var minimapGO = new GameObject("MinimapController");
+            minimapGO.AddComponent<MinimapController>();
         }
     }
 
