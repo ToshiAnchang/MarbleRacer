@@ -214,16 +214,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7761c92eaf4f4584d9ee9fe6e96bbd6b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  marbleDiameter: 2
-  topDiameterMultiplier: 50
-  bottomDiameterMultiplier: 1.8
-  funnelHeight: 7
+  marbleDiameter: 1
+  topDiameterMultiplier: 100
+  bottomDiameterMultiplier: 3
+  funnelHeight: 10
   spoutLength: 10
-  spoutRadiusMultiplier: 2
+  spoutRadiusMultiplier: 3
   spoutBendOffsetZ: 20
   segmentsAround: 128
   funnelSegmentsDown: 64
-  spoutSegmentsDown: 24
+  spoutSegmentsDown: 48
   funnelCurvePower: 0.5
   autoGenerateInEditor: 1
 --- !u!1 &6648760810275114283

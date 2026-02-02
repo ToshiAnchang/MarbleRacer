@@ -46,7 +46,7 @@ public static class PlayerMarbleSpawner
             // 위치 / 회전은 StartPos 를 그대로 따라감
             marbleGO.transform.position = spawnPoint.position;
             marbleGO.transform.rotation = spawnPoint.rotation;
-            marbleGO.transform.localScale = Vector3.one * 1.0f; // 구슬 크기는 여기서 조절
+            marbleGO.transform.localScale = Vector3.one * PhysicsManager.Instance.marbleSize; // 구슬 크기 설정
 
             // Rigidbody + PlayerMarble 스크립트 부착
             Rigidbody rb = marbleGO.AddComponent<Rigidbody>();

@@ -22,7 +22,7 @@ public class PhysicsManager : MonoBehaviour
     // ───────────────────────────────── 전역 물리 설정 ─────────────────────────────────
     [Header("전역 물리 설정")]
     [Tooltip("Unity Physics에서 느린 충돌도 튐을 계산할지 여부를 결정하는 임계치.\n값이 낮을수록 약한 충돌에서도 bounciness가 적용됩니다.")]
-    public float bounceThreshold = 0.5f;
+    public float bounceThreshold = 5f;
 
     [Tooltip("구슬에 적용할 중력 배수. (1 = 기본 중력)\n구슬 쪽에서 Physics.gravity * globalGravityMultiplier 로 사용합니다.")]
     public float globalGravityMultiplier = 4.0f;
@@ -40,13 +40,13 @@ public class PhysicsManager : MonoBehaviour
 
     [Range(0f, 1f)]
     [Tooltip("깔대기 탄성 계수 (bounciness). 보통 0으로 둡니다.")]
-    public float startBounciness = 0.5f;
+    public float startBounciness = 0.0f;
 
     [Tooltip("깔대기 마찰 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
     public PhysicMaterialCombine startFrictionCombine = PhysicMaterialCombine.Average;
 
     [Tooltip("깔대기 탄성 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
-    public PhysicMaterialCombine startBounceCombine = PhysicMaterialCombine.Average;
+    public PhysicMaterialCombine startBounceCombine = PhysicMaterialCombine.Minimum;
 
 
     // ───────────────────────────────── 트랙 PhysicMaterial ─────────────────────────────────
@@ -62,7 +62,7 @@ public class PhysicsManager : MonoBehaviour
 
     [Range(0f, 1f)]
     [Tooltip("트랙 탄성 계수 (bounciness). 보통 0으로 둡니다.")]
-    public float trackBounciness = 0f;
+    public float trackBounciness = 0.0f;
 
     [Tooltip("트랙 마찰 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
     public PhysicMaterialCombine trackFrictionCombine = PhysicMaterialCombine.Minimum;
@@ -75,6 +75,9 @@ public class PhysicsManager : MonoBehaviour
     [Tooltip("구슬에 쓸 PhysicMaterial.\n비워두면 런타임에 자동 생성 후 아래 값으로 세팅합니다.")]
     public PhysicMaterial marbleMaterial;
 
+    [Tooltip("구슬의 크기 / 기본 = 1")]
+    public float marbleSize = 1.0f;
+
     [Tooltip("구슬 정지 마찰 계수 (staticFriction)")]
     public float marbleStaticFriction = 0.0f;
 
@@ -83,17 +86,17 @@ public class PhysicsManager : MonoBehaviour
 
     [Range(0f, 1f)]
     [Tooltip("구슬 탄성 계수 (bounciness). 구슬끼리 살짝 튀게 하려면 0.2~0.3 정도.")]
-    public float marbleBounciness = 0.2f;
+    public float marbleBounciness = 0.0f;
 
     [Tooltip("구슬 마찰 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
     public PhysicMaterialCombine marbleFrictionCombine = PhysicMaterialCombine.Average;
 
     [Tooltip("구슬 탄성 Combine 모드 - 다른 오브젝트와 만났을때 어느 쪽인가")]
-    public PhysicMaterialCombine marbleBounceCombine = PhysicMaterialCombine.Maximum;
+    public PhysicMaterialCombine marbleBounceCombine = PhysicMaterialCombine.Minimum;
 
-    [Header("구글 스타트 깔대기 회전 보정")]
+    [Header("구슬 스타트 깔대기 회전 보정")]
     [Tooltip("0보다 크면 깔대기 안에서 시계 방향 회전을 유지시키는 힘(가속도)")]
-    public float funnelSwirlForce = 7f;
+    public float funnelSwirlForce = 0f;
 
     // ───────────────────────────────── 구슬 Rigidbody 기본값 ─────────────────────────────────
     [Header("구슬 Rigidbody 기본값")]

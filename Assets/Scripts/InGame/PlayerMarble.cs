@@ -15,7 +15,7 @@ public class PlayerMarble : MonoBehaviour
     [Tooltip("리소스 경로 (Resources/Character/Ghost)")]
     [SerializeField] private string ghostPath = "Character/Ghost";
     [Tooltip("공 기준 고스트 위치 오프셋")]
-    [SerializeField] private Vector3 ghostOffset = new Vector3(0, 0.5f, 0);
+    [SerializeField] private Vector3 ghostOffset = new Vector3(0, (PhysicsManager.Instance.marbleSize/2), 0);
     private Transform ghostTransform;       // 인스턴스 된 고스트    
 
     [Header("유령 방향 설정")]
@@ -112,6 +112,7 @@ public class PlayerMarble : MonoBehaviour
         funnelSwirlForce += (float)rand.NextDouble() * 2f -1f; // -1 ~ +1 랜덤 보정
         Debug.Log($"[★★★★] {name} funnelSwirlForce={funnelSwirlForce}");
 
+        // ───── 구슬 위에 나오는 고스트 관련 셋업 ─────
         // 1. 프리팹 로드
         GameObject ghostPrefab = Resources.Load<GameObject>(ghostPath);
         if (ghostPrefab == null)
@@ -140,6 +141,7 @@ public class PlayerMarble : MonoBehaviour
         if (_ghostLastMoveDir.sqrMagnitude < 0.0001f)
             _ghostLastMoveDir = transform.forward;
 
+        // 6. 수평 방향만 사용 설정 시 정규화
         if (ghostHorizontalOnly)
         {
             _ghostLastMoveDir.y = 0f;
