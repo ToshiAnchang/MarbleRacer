@@ -122,6 +122,127 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &484475797
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 484475799}
+  - component: {fileID: 484475798}
+  m_Layer: 0
+  m_Name: SFXManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &484475798
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 484475797}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 573ff796da314234682ac9f519a62b55, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  audioSource: {fileID: 0}
+  sfxList:
+  - key: Approved 1
+    clip: {fileID: 8300000, guid: d296adf47dd0a514fbd36b5ff7df9f9c, type: 3}
+    volume: 1
+  - key: Ascending Mystery 1
+    clip: {fileID: 8300000, guid: c4ba6436bdf9d134894c132824def13f, type: 3}
+    volume: 1
+  - key: Bell Star 2
+    clip: {fileID: 8300000, guid: d6945231be24c7240a281458fc849e1f, type: 3}
+    volume: 1
+  - key: Brightest Star 3
+    clip: {fileID: 8300000, guid: 973cbfce50fc9634b8c2729624d4cc4d, type: 3}
+    volume: 1
+  - key: Checkpoint 2
+    clip: {fileID: 8300000, guid: f64ab1f9953f79344995a101decf9830, type: 3}
+    volume: 1
+  - key: Coin Bag Reward
+    clip: {fileID: 8300000, guid: 2a71d8e8ea428e0409d3df636b9f0192, type: 3}
+    volume: 1
+  - key: Cosmic Reveal
+    clip: {fileID: 8300000, guid: 6996c6a6c942c7d4d9f2fb5ab5163fda, type: 3}
+    volume: 1
+  - key: Discovery 1
+    clip: {fileID: 8300000, guid: 67583b1df87740e41b2542fe351fd91d, type: 3}
+    volume: 1
+  - key: Harp 4
+    clip: {fileID: 8300000, guid: a1c48dd39207ece46a29b8796640661e, type: 3}
+    volume: 1
+  - key: Harp Money 1
+    clip: {fileID: 8300000, guid: c58a6e6d4ceb56e4882a7d60561a7afc, type: 3}
+    volume: 1
+  - key: Magic Score 5
+    clip: {fileID: 8300000, guid: 668620113e9d6dc4483ba3d8dbae9fcf, type: 3}
+    volume: 1
+  - key: Magic Score 8
+    clip: {fileID: 8300000, guid: b7b21f9a60172844dbf194c6b25f40dd, type: 3}
+    volume: 1
+  - key: Magic Score 9
+    clip: {fileID: 8300000, guid: 46e7fc2590c4ae64fb8c79606698b98d, type: 3}
+    volume: 1
+  - key: Marimba 3 Notes Descend
+    clip: {fileID: 8300000, guid: bf0938dc5667ff34aa2616789bb48a17, type: 3}
+    volume: 1
+  - key: Mellow Hint 2
+    clip: {fileID: 8300000, guid: 2999a8c2c936b614989c3aa5265eac71, type: 3}
+    volume: 1
+  - key: Mysterious Chapter
+    clip: {fileID: 8300000, guid: 76adc3bada8ddff4bbd042635fed2f7d, type: 3}
+    volume: 1
+  - key: Notified 2
+    clip: {fileID: 8300000, guid: 568470e29bef88c4aaa027db357be957, type: 3}
+    volume: 1
+  - key: Positive Vibes Coin
+    clip: {fileID: 8300000, guid: b3b1ca576c2899b40befb38abb0775fe, type: 3}
+    volume: 1
+  - key: Retro Star 2
+    clip: {fileID: 8300000, guid: 1be2fcc16ab0da84f99ba7c633037620, type: 3}
+    volume: 1
+  - key: Retro Star Descending 3
+    clip: {fileID: 8300000, guid: 16d0788660e724f44ae05e641af1b222, type: 3}
+    volume: 1
+  - key: Sci Fi Stinger 4
+    clip: {fileID: 8300000, guid: 146d4b19f95fe6d40832414952b4ea39, type: 3}
+    volume: 1
+  - key: Score Point 2
+    clip: {fileID: 8300000, guid: 28a7e67ca249e874887b4c601e4f5e1b, type: 3}
+    volume: 1
+  - key: Shimmery Reward 5
+    clip: {fileID: 8300000, guid: 6e7f23ef945c235438595e89d6332d46, type: 3}
+    volume: 1
+  - key: Solo Shimmer 2
+    clip: {fileID: 8300000, guid: e7d5139a2d2df3f40b2fd91b5c4a0217, type: 3}
+    volume: 1
+  - key: Unlocked Secret
+    clip: {fileID: 8300000, guid: a65e44e8c694a3a4891eef0db109e331, type: 3}
+    volume: 1
+--- !u!4 &484475799
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 484475797}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.8550699, y: 9.889421, z: 16.388182}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -308,9 +429,87 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1931606621
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1931606623}
+  - component: {fileID: 1931606622}
+  m_Layer: 0
+  m_Name: BGMManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1931606622
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1931606621}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f30dd93eb3aef364d83df6e0b1b92e62, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  audioSource: {fileID: 0}
+  bgmList:
+  - key: 8BIT1
+    clip: {fileID: 8300000, guid: 033766cc31c97904bae4404b8a079544, type: 3}
+    volume: 1
+  - key: 8BIT10
+    clip: {fileID: 8300000, guid: 1f2ad53bacc245642854dbdc8ea71a9b, type: 3}
+    volume: 1
+  - key: 8BIT2
+    clip: {fileID: 8300000, guid: fc5af015011ea3745b7f78ea1dd1049f, type: 3}
+    volume: 1
+  - key: 8BIT3
+    clip: {fileID: 8300000, guid: 559c232a43caebe41870ce54786f604e, type: 3}
+    volume: 1
+  - key: 8BIT4
+    clip: {fileID: 8300000, guid: 51a4f1157b7ff1449b5e5cf064d584c7, type: 3}
+    volume: 1
+  - key: 8BIT5
+    clip: {fileID: 8300000, guid: 06906d718be5b6a4cb2df8732bf39832, type: 3}
+    volume: 1
+  - key: 8BIT6
+    clip: {fileID: 8300000, guid: 89f935015cc98724a862a586326fdf21, type: 3}
+    volume: 1
+  - key: 8BIT7
+    clip: {fileID: 8300000, guid: 0ad591428b0c18c4da51fe3bf98dbc63, type: 3}
+    volume: 1
+  - key: 8BIT8
+    clip: {fileID: 8300000, guid: bef0cef2ded0f0645ad90c6e5bdd4965, type: 3}
+    volume: 1
+  - key: 8BIT9
+    clip: {fileID: 8300000, guid: 35967e8a4dfb1664e9b066939272c0a4, type: 3}
+    volume: 1
+--- !u!4 &1931606623
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1931606621}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.8550699, y: 9.889421, z: 16.388182}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 963194228}
   - {fileID: 705507995}
+  - {fileID: 484475799}
+  - {fileID: 1931606623}
