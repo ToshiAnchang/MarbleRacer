@@ -5,7 +5,7 @@ using UnityEngine;
 [Serializable]
 public class BGMEntry
 {
-    public string key;               // "Hit", "Jump" 이런 이름 (기본은 파일명)
+    public string key;               // "Main", "Title" 등
     public AudioClip clip;           // 실제 오디오 클립
     [Range(0f, 1f)]
     public float volume = 1f;        // 개별 볼륨
@@ -57,9 +57,9 @@ public class BGMManager : MonoBehaviour
             BuildDictionary();
         }
 
-        // 효과음은 2D가 편함
+        // BGM은 보통 2D + 루프
         audioSource.playOnAwake = false;
-        audioSource.loop = false;
+        audioSource.loop = true;       // BGM이니까 기본적으로 루프
         audioSource.spatialBlend = 0f;
     }
 
@@ -110,7 +110,31 @@ public class BGMManager : MonoBehaviour
     }
 
     /// <summary>
-    /// 문자열 key로 재생 ("Hit", "Goal" 등)
+    /// 내부 공용 함수: BGMEntry 하나를 재생
+    /// - 기존 BGM은 무조건 정지
+    /// - 항상 1개만 재생
+    /// </summary>
+    private void PlayEntry(BGMEntry entry)
+    {
+        if (audioSource == null || entry == null || entry.clip == null)
+            return;
+
+        // 이전에 재생 중이던 건 무조건 정지
+        audioSource.Stop();
+
+        // 새 BGM 설정
+        audioSource.clip = entry.clip;
+        audioSource.volume = entry.volume;
+
+        // BGM은 기본적으로 루프 (필요 없으면 false로 바꾸셔도 됩니다)
+        audioSource.loop = true;
+
+        // 재생
+        audioSource.Play();
+    }
+
+    /// <summary>
+    /// 문자열 key로 재생 ("Main", "Title" 등)
     /// </summary>
     public void Play(string key)
     {
@@ -128,17 +152,11 @@ public class BGMManager : MonoBehaviour
             return;
         }
 
-        if (entry.clip == null)
-        {
-            Debug.LogWarning($"[BGMManager] key={key} 의 clip이 없음");
-            return;
-        }
-
-        audioSource.PlayOneShot(entry.clip, entry.volume);
+        PlayEntry(entry);
     }
 
     /// <summary>
-    /// 인스펙터에서 index로 재생할 때 사용 (커스텀 에디터에서 호출)
+    /// 인덱스로 재생 (커스텀 에디터에서 호출)
     /// </summary>
     public void PlayByIndex(int index)
     {
@@ -146,8 +164,51 @@ public class BGMManager : MonoBehaviour
         if (index < 0 || index >= bgmList.Count) return;
 
         var entry = bgmList[index];
-        if (entry?.clip == null) return;
-
-        audioSource.PlayOneShot(entry.clip, entry.volume);
+        PlayEntry(entry);
     }
+
+    /// <summary>
+    /// 현재 재생 중인 BGM 정지
+    /// </summary>
+    public void Stop()
+    {
+        if (audioSource == null) return;
+
+        audioSource.Stop();
+        audioSource.clip = null; // 선택사항 (완전 초기화)
+    }
+
+    /// <summary>
+    /// 현재 BGM 일시정지
+    /// </summary>
+    public void Pause()
+    {
+        if (audioSource == null) return;
+        if (!audioSource.isPlaying) return;
+
+        audioSource.Pause();
+    }
+
+    /// <summary>
+    /// 일시정지된 BGM 다시 재생
+    /// </summary>
+    public void Resume()
+    {
+        if (audioSource == null) return;
+        if (audioSource.clip == null) return;
+
+        audioSource.UnPause();
+    }
+
+    public void Stop(string key)
+    {
+        if (audioSource == null) return;
+        if (audioSource.clip == null) return;
+
+        if (string.Equals(audioSource.clip.name, key, StringComparison.OrdinalIgnoreCase))
+        {
+            Stop();
+        }
+    }
+
 }

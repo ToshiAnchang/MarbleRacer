@@ -53,6 +53,12 @@ public class BGMManagerEditor : Editor
             {
                 mgr.PlayByIndex(i);
             }
+
+            // Stop 버튼
+            if (GUILayout.Button("Stop", GUILayout.Width(60)))
+            {
+                mgr.Stop();
+            }
             GUI.enabled = true;
 
             EditorGUILayout.EndHorizontal();
